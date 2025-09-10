@@ -1,0 +1,8 @@
+flask
+flask-socketio
+pandas
+numpy
+pyaudio
+vosk
+ollama
+websockets

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hlasový záznamník zásob</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.5/client-dist/socket.io.min.js"></script>
+    <style>
+        body { padding: 20px; }
+        .status-box { font-weight: bold; color: #333; }
+        .transcription-box, .ai-processing-box { margin-top: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .ai-processing-box { white-space: pre-wrap; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hlasový záznamník zásob</h1>
+
+        <h3>Hlasové ovládání</h3>
+        <button id="micButton" class="btn btn-primary">Start</button>
+        <p>Stiskněte pro zapnutí/vypnutí mikrofonu</p>
+        <button id="testSocketButton" class="btn btn-secondary">Test SocketIO</button>
+
+        <h3>Stav</h3>
+        <div id="status" class="status-box">Připraven k nahrávání</div>
+        <div id="processing" style="display: none;">Zpracovávám pomocí AI...</div>
+
+        <h3>Poslední přepis:</h3>
+        <div id="lastTranscription" class="transcription-box">Zatím žádný přepis...</div>
+
+        <h3>AI zpracování:</h3>
+        <div id="aiProcessing" class="ai-processing-box">Zatím žádné zpracování...</div>
+
+        <h3>Manuální vstup</h3>
+        <form action="/process" method="POST">
+            <div class="mb-3">
+                <textarea class="form-control" id="textInput" name="text_input" rows="4" placeholder="Zadejte text (např. 'Koupil jsem 2 mléka')"></textarea>
+            </div>
+            <button type="submit" class="btn btn-success">Zpracovat</button>
+        </form>
+
+        <h3>Aktuální stav zásob</h3>
+        <div id="inventoryTable">{{ table|safe }}</div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('SocketIO connected');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('SocketIO connection error:', error);
+            document.getElementById('status').textContent = 'Chyba připojení k serveru';
+        });
+
+        socket.on('disconnect', () => {
+            console.log('SocketIO disconnected');
+            document.getElementById('status').textContent = 'Odpojeno od serveru';
+        });
+
+        document.getElementById('micButton').addEventListener('click', () => {
+            const button = document.getElementById('micButton');
+            try {
+                if (button.textContent === 'Start') {
+                    console.log('Emitting start_recording event');
+                    socket.emit('start_recording');
+                    button.textContent = 'Stop';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-danger');
+                    document.getElementById('status').textContent = 'Nahrávám...';
+                } else {
+                    console.log('Emitting stop_recording event');
+                    socket.emit('stop_recording');
+                    button.textContent = 'Start';
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-primary');
+                    document.getElementById('status').textContent = 'Připraven k nahrávání';
+                }
+            } catch (error) {
+                console.error('Error handling mic button click:', error);
+                document.getElementById('status').textContent = 'Chyba při ovládání mikrofonu';
+            }
+        });
+
+        document.getElementById('testSocketButton').addEventListener('click', () => {
+            console.log('Requesting test_socket endpoint');
+            fetch('/test_socket')
+                .then(response => response.text())
+                .then(data => console.log('Test socket response:', data))
+                .catch(error => console.error('Error testing socket:', error));
+        });
+
+        socket.on('recording_started', () => {
+            console.log('Received recording_started event');
+            document.getElementById('status').textContent = 'Nahrávám...';
+        });
+
+        socket.on('recording_already_active', () => {
+            console.log('Received recording_already_active event');
+            document.getElementById('status').textContent = 'Nahrávání již probíhá';
+        });
+
+        socket.on('recording_stopped', () => {
+            console.log('Received recording_stopped event');
+            document.getElementById('status').textContent = 'Připraven k nahrávání';
+            document.getElementById('processing').style.display = 'none';
+        });
+
+        socket.on('recording_not_active', () => {
+            console.log('Received recording_not_active event');
+            document.getElementById('status').textContent = 'Nahrávání není aktivní';
+        });
+
+        socket.on('speech_start', () => {
+            console.log('Received speech_start event');
+            document.getElementById('status').textContent = 'Detekována řeč...';
+            document.getElementById('processing').style.display = 'block';
+        });
+
+        socket.on('speech_end', () => {
+            console.log('Received speech_end event');
+            document.getElementById('status').textContent = 'Zpracovávám...';
+        });
+
+        socket.on('transcription_result', (data) => {
+            console.log('Received transcription_result:', data);
+            document.getElementById('lastTranscription').textContent = data.text || 'Žádný text nerozpoznán';
+        });
+
+        socket.on('table_update', (data) => {
+            console.log('Received table_update:', data);
+            document.getElementById('inventoryTable').innerHTML = data.table;
+            document.getElementById('aiProcessing').textContent = JSON.stringify(data.extracted_data, null, 2);
+            document.getElementById('processing').style.display = 'none';
+        });
+
+        socket.on('processing_error', (data) => {
+            console.log('Received processing_error:', data);
+            document.getElementById('aiProcessing').textContent = `Chyba: ${data.message}`;
+            document.getElementById('processing').style.display = 'none';
+        });
+
+        socket.on('test_event', (data) => {
+            console.log('Received test_event:', data);
+            document.getElementById('status').textContent = `Test SocketIO: ${data.message}`;
+        });
+    </script>
+</body>
+</html>

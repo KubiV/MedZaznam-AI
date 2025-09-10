@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hlasový záznamník zásob</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- OPRAVENÝ ODKAZ NA SOCKET.IO -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxI+5OPRRrIn9HuXDdaZEVBcvHcKcIOaQVh2b" crossorigin="anonymous"></script>
+    <style>
+        body {
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .voice-controls {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            color: white;
+            text-align: center;
+        }
+        .voice-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            font-size: 3rem;
+            transition: all 0.3s ease;
+            margin: 1rem;
+        }
+        .voice-button:not(.recording) {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+        .voice-button.recording {
+            background: linear-gradient(135deg, #ff9a9e, #fecfef);
+            color: #333;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+        .status-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-left: 5px solid #007bff;
+        }
+        .transcription-display {
+            background: #e9ecef;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            min-height: 100px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        .processing-indicator {
+            display: none;
+            color: #ffc107;
+        }
+        .table-container {
+            margin-top: 2rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        th, td {
+            text-align: center;
+            vertical-align: middle;
+        }
+        th:first-child, td:first-child {
+            text-align: left;
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 10;
+        }
+        .table-striped > tbody > tr:nth-of-type(odd) > td:first-child {
+            background: #f8f9fa;
+        }
+        .manual-input {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        .alert-custom {
+            border-radius: 10px;
+            border: none;
+            font-weight: 500;
+        }
+        .speech-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #28a745;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        .latest-extraction {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <h1 class="text-center mb-4">
+                <i class="fas fa-microphone-alt text-primary"></i>
+                Hlasový záznamník zásob
+            </h1>
+
+            <!-- Hlasové ovládání -->
+            <div class="voice-controls">
+                <h3><i class="fas fa-volume-up"></i> Hlasové ovládání</h3>
+                <div class="d-flex justify-content-center align-items-center">
+                    <button id="voiceButton" class="voice-button">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
+                <p class="mt-3 mb-0">Stiskněte pro zapnutí/vypnutí mikrofonu</p>
+            </div>
+
+            <!-- Status panel -->
+            <div class="status-panel">
+                <h5><i class="fas fa-info-circle"></i> Stav</h5>
+                <div id="statusText">Připraven k nahrávání</div>
+                <div id="processingIndicator" class="processing-indicator mt-2">
+                    <i class="fas fa-spinner fa-spin"></i> Zpracovávám pomocí AI...
+                </div>
+            </div>
+
+            <!-- Zobrazení přepisu -->
+            <div class="transcription-display">
+                <h6><i class="fas fa-comments"></i> Poslední přepis:</h6>
+                <div id="transcriptionText" class="text-muted">Zatím žádný přepis...</div>
+            </div>
+
+            <!-- Zobrazení posledního zpracování -->
+            <div id="latestExtraction" class="latest-extraction" style="display: none;">
+                <h6><i class="fas fa-robot"></i> AI zpracování:</h6>
+                <div id="extractionText"></div>
+            </div>
+
+            <!-- Manuální vstup -->
+            <div class="manual-input">
+                <h5><i class="fas fa-keyboard"></i> Manuální vstup</h5>
+                <form action="/process" method="post">
+                    <div class="input-group">
+                        <input type="text" name="text_input" class="form-control"
+                               placeholder="Zadejte text (např. 'Koupil jsem 3 rohlíky a 1 mléko')"
+                               autofocus>
+                        <button class="btn btn-outline-primary" type="submit">
+                            <i class="fas fa-paper-plane"></i> Zpracovat
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tabulka stavu -->
+            <div class="table-container">
+                <h3><i class="fas fa-table"></i> Aktuální stav zásob</h3>
+                <div id="inventoryTable">
+                    {{ table|safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Socket.IO připojení
+        const socket = io();
+        let isRecording = false;
+
+        // DOM elementy
+        const voiceButton = document.getElementById('voiceButton');
+        const statusText = document.getElementById('statusText');
+        const transcriptionText = document.getElementById('transcriptionText');
+        const processingIndicator = document.getElementById('processingIndicator');
+        const inventoryTable = document.getElementById('inventoryTable');
+        const latestExtraction = document.getElementById('latestExtraction');
+        const extractionText = document.getElementById('extractionText');
+
+        function toggleRecording() {
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        function startRecording() {
+            socket.emit('start_recording');
+        }
+
+        function stopRecording() {
+            socket.emit('stop_recording');
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusText.innerHTML = `<i class="fas fa-${getIconForType(type)}"></i> ${message}`;
+            statusText.className = `text-${type}`;
+        }
+
+        function getIconForType(type) {
+            const icons = {
+                'info': 'info-circle',
+                'success': 'check-circle',
+                'warning': 'exclamation-triangle',
+                'danger': 'times-circle',
+                'primary': 'microphone'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        function updateButtonState(recording) {
+            isRecording = recording;
+            if (recording) {
+                voiceButton.classList.add('recording');
+                voiceButton.innerHTML = '<i class="fas fa-stop"></i>';
+            } else {
+                voiceButton.classList.remove('recording');
+                voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        }
+
+        // Připojení posluchače události k tlačítku
+        voiceButton.addEventListener('click', toggleRecording);
+
+        // Socket.IO event handlers
+        socket.on('recording_started', function() {
+            updateButtonState(true);
+            updateStatus('Mikrofon je aktivní - mluvte...', 'primary');
+        });
+
+        socket.on('recording_stopped', function() {
+            updateButtonState(false);
+            updateStatus('Nahrávání zastaveno', 'info');
+        });
+
+        socket.on('speech_start', function() {
+            updateStatus('<span class="speech-indicator"></span>Detekuji řeč - nahrávám...', 'success');
+        });
+
+        socket.on('speech_end', function() {
+            updateStatus('Zpracovávám řeč...', 'warning');
+            processingIndicator.style.display = 'block';
+        });
+
+        socket.on('transcription_result', function(data) {
+            transcriptionText.innerHTML = `<strong>"${data.text}"</strong>`;
+            transcriptionText.className = 'text-dark';
+            updateStatus('Přepis dokončen - zpracovávám AI...', 'info');
+        });
+
+        socket.on('table_update', function(data) {
+            inventoryTable.innerHTML = data.table;
+            processingIndicator.style.display = 'none';
+
+            // Zobrazení extrahovaných dat
+            if (data.extracted_data) {
+                const operation = data.extracted_data.operace === 'prirustek' ? 'Přírůstek/úbytek' : 'Nastavení stavu';
+                const items = Object.entries(data.extracted_data.polozky)
+                    .map(([item, value]) => `${item}: ${value > 0 ? '+' : ''}${value}`)
+                    .join(', ');
+
+                extractionText.innerHTML = `<strong>${operation}:</strong> ${items}`;
+                latestExtraction.style.display = 'block';
+            }
+
+            updateStatus('Tabulka aktualizována!', 'success');
+
+            // Auto-hide success message
+            setTimeout(() => {
+                if (isRecording) {
+                    updateStatus('<span class="speech-indicator"></span>Mikrofon aktivní - čekám na řeč...', 'primary');
+                } else {
+                    updateStatus('Připraven k nahrávání', 'info');
+                }
+            }, 3000);
+        });
+
+        socket.on('processing_error', function(data) {
+            processingIndicator.style.display = 'none';
+            updateStatus(`Chyba: ${data.message}`, 'danger');
+        });
+
+        socket.on('recording_already_active', function() {
+            updateStatus('Nahrávání je již aktivní', 'warning');
+        });
+
+        socket.on('error', function(data) {
+            updateStatus(`Systémová chyba: ${data.message}`, 'danger');
+            updateButtonState(false);
+            processingIndicator.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
