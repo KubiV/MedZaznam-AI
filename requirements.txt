@@ -6,3 +6,4 @@ pyaudio
 vosk
 ollama
 websockets
+groq

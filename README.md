@@ -43,6 +43,7 @@ Tímto příkazem uvidíte nainstalované modely
 
 3. Aktivuj prostředí
 ```source venv/bin/activate```
+source venv312/bin/activate
 
 4. Instaluj balíčky
 ```pip install <nazev_balicku>```
@@ -90,6 +91,13 @@ pip install vosk
 https://alphacephei.com/vosk/models
 
 převést audio na správný formát: ffmpeg -i input_audio.wav -ac 1 -ar 16000 -acodec pcm_s16le converted_audio.wav
+
+# Groq
+
+pip install groq
+python3 -m pip install groq --break-system-packages
+
+export GROQ_API_KEY=tvuj-api-klic
 
 
 # GitIgnore

@@ -46,7 +46,7 @@ SILENCE_DURATION = 1.5
 MAX_RECORDING_TIME = 15
 
 # --- VOSK MODEL ---
-MODEL_PATH = "/Users/jakubvavra/Desktop/Automoitoring/tests/vosk/vosk-model-small-cs-0.4-rhasspy"
+MODEL_PATH = "/Users/jakubvavra/Documents/GitHub/Automonitoring-with-AI/tests/vosk/vosk-model-small-cs-0.4-rhasspy"
 
 # --- FLASK AND SOCKETIO INITIALIZATION ---
 app = Flask(__name__)
