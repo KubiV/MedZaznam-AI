@@ -19,13 +19,19 @@ import wave
 # --- NASTAVENÍ ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+CSV_DIR = os.path.join(BASE_DIR, 'csv_logs')
 # Ujistěte se, že cesta k Vosk modelu je správná
 #MODEL_PATH = os.path.join(BASE_DIR, "vosk-model-small-cs-0.4-rhasspy") 
 MODEL_PATH = "/Users/jakubvavra/Documents/GitHub/Automonitoring-with-AI/tests/vosk/vosk-model-small-cs-0.4-rhasspy"
 CSV_DATA_PATH = os.path.join(BASE_DIR, 'Hodnoty MED.csv')
 
 # Vytvoření adresářů
-os.makedirs(LOGS_DIR, exist_ok=True)
+try:
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    os.makedirs(CSV_DIR, exist_ok=True)
+except Exception as e:
+    logging.error(f"Chyba při vytváření adresářů: {e}")
+
 
 # Nastavení logování
 logging.basicConfig(
@@ -60,27 +66,20 @@ recording_lock = threading.Lock()
 # --- NAČTENÍ A PŘÍPRAVA DAT ---
 try:
     df_med_items = pd.read_csv(CSV_DATA_PATH, delimiter=';')
-    # -----------------------------------------------------------------
-    # OPRAVA: Přejmenování sloupce 'DrABCDE' na 'Položka'
-    # -----------------------------------------------------------------
     df_med_items.rename(columns={'DrABCDE': 'Položka'}, inplace=True)       
     
     numeric_items = []
     text_items = []
     
     for _, row in df_med_items.iterrows():
-        # Zkontrolujeme, zda hodnota v 'Referenční hodnoty' není prázdná
         if pd.notna(row['Referenční hodnoty']):
             ref_val = str(row['Referenční hodnoty'])
-            # Jednoduchá logika: pokud referenční hodnota obsahuje číslici, je to číselná položka
             if any(char.isdigit() for char in ref_val):
                 numeric_items.append(row['Položka'])
             else:
                 text_items.append(row['Položka'])
         else:
-            # Pokud je referenční hodnota prázdná, předpokládáme textovou položku
             text_items.append(row['Položka'])
-
 
     df_numeric_state = pd.DataFrame({'Počáteční stav': np.nan}, index=numeric_items)
     df_text_state = pd.DataFrame({'Počáteční stav': ''}, index=text_items)
@@ -142,7 +141,7 @@ class VoiceSpeechProcessor:
         self.is_speaking = False
         self.speech_frames = deque()
         self.silence_counter = 0
-        self.audio_buffer = deque(maxlen=int(RATE * (MIN_SPEECH_DURATION + SILENCE_DURATION) / CHUNK)) # Buffer pro zachycení začátku řeči
+        self.audio_buffer = deque(maxlen=int(RATE * (MIN_SPEECH_DURATION + SILENCE_DURATION) / CHUNK))
         if AI_PROVIDER == 'local':
             self.initialize_vosk()
 
@@ -358,6 +357,20 @@ def get_data_from_groq(text: str) -> dict | None:
         logging.error(f"Chyba při komunikaci s GROQ: {e}")
         return None
 
+def save_to_csv():
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        numeric_csv_path = os.path.join(CSV_DIR, f'numeric_state_{timestamp}.csv')
+        df_numeric_state.to_csv(numeric_csv_path)
+        
+        text_csv_path = os.path.join(CSV_DIR, f'text_state_{timestamp}.csv')
+        df_text_state.to_csv(text_csv_path)
+        
+        logging.info(f"Tabulky uloženy do CSV: {numeric_csv_path} a {text_csv_path}")
+    except Exception as e:
+        logging.error(f"Chyba při ukládání CSV: {e}")
+
 def process_with_llm(text: str):
     global df_numeric_state, df_text_state
     logging.info(f"Zpracovávám text: '{text}' pomocí {AI_PROVIDER}")
@@ -400,6 +413,8 @@ def process_with_llm(text: str):
                 df_text_state.loc[found_item, timestamp] = str(value)
         
         emit_table_update(extracted_data)
+        save_to_csv() # <-- ULOŽENÍ PO AKTUALIZACI
+        
     else:
         logging.info("Žádná relevantní data k aktualizaci.")
         socketio.emit('processing_error', {'message': 'Nerozuměl jsem, žádná data k aktualizaci.'})
