@@ -60,6 +60,12 @@ PREDEFINED_ITEMS = [
     'Mouka', 'Olej', 'Toaletní papír', 'Mýdlo', 'Prací prostředek', 'Rohlík', 'Houska'
 ]
 
+PREDEFINED_ITEMS_1 = [
+    'SpO2', 'Srdeční frekvence', 'Krevní tlak', 'Dechová frekvence', 'Teplota',
+    'Bolest NRS', 'Dušnost', 'Kyslíková terapie', 'Léky', 'Infuzní terapie',
+    'Anamnéza', 'Fyzikální vyšetření', 'Příznaky'
+]
+
 df_state = pd.DataFrame(
     {'Počáteční stav': 0},
     index=PREDEFINED_ITEMS
@@ -92,6 +98,39 @@ Výstup: {"operace": "nastaveni", "polozky": {"vejce": 5}}
 
 Uživatel: "Halo"
 Výstup: {"operace": "none", "polozky": {}}
+"""
+
+system_prompt_1 = """
+
+Jsi expert na extrakci lékařských dat.
+Tvým úkolem je z textu extrahovat medicínské parametry, nálezy a stavy pacienta podle standardizovaných položek (DrABCDE, vitální funkce, anamnéza, fyzikální vyšetření, léčba, příznaky).
+
+Pravidla:
+	1.	Výstup musí být VŽDY a POUZE platný JSON objekt.
+	2.	JSON obsahuje dva klíče:
+	•	"operace":
+	•	"prirustek" – pokud text popisuje přidání, provedení nebo změnu stavu (např. „nasadil jsem kyslík“, „zhoršila se dušnost“, „přidal jsem léky“).
+	•	"nastaveni" – pokud text popisuje aktuální, finální nebo absolutní stav (např. „pacient má SpO2 98 %“, „tepová frekvence je 120/min“, „bolest 5/10“).
+	•	"none" – pokud text neobsahuje žádnou relevantní informaci o zdravotním stavu nebo intervenci.
+	•	"polozky": slovník, kde klíče jsou názvy lékařských položek v 1. pádě jednotného čísla (např. „SpO2“, „srdeční frekvence“, „bolest NRS“, „krevní tlak“, „dušnost“) a hodnoty jsou číselné nebo textové údaje podle toho, co je ve vstupu.
+	3.	Pokud text obsahuje více různých údajů, ulož je všechny do "polozky".
+	4.	Pokud není jasná hodnota (např. jen „pacient má bolesti“), ulož ji jako řetězec. Pokud je uvedena číselně (např. „bolest 6/10“), ulož číslo.
+	5.	Názvy položek ber vždy z předem definovaného seznamu (DrABCDE, anamnéza, vyšetření, příznaky, léčba atd. – viz přiložená CSV). Pokud se objeví synonymum, normalizuj ho (např. „tep“ → „srdeční frekvence“, „saturace“ → „SpO2“).
+
+Příklady:
+
+Uživatel: „Pacient má SpO2 92 % a tep 120/min“
+Výstup: {"operace": "nastaveni", "polozky": {"SpO2": 92, "srdeční frekvence": 120}}
+
+Uživatel: „Nasadil jsem kyslíkovou terapii a přidal infuzi“
+Výstup: {"operace": "prirustek", "polozky": {"oxygenoterapie": "zahájena", "léky": "infuzní terapie"}}
+
+Uživatel: „Pacient si stěžuje na bolesti břicha“
+Výstup: {"operace": "nastaveni", "polozky": {"bolest": "břicho"}}
+
+Uživatel: „Halo“
+Výstup: {"operace": "none", "polozky": {}}
+
 """
 
 class VoiceSpeechProcessor:

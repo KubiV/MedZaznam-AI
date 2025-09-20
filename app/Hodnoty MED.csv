@@ -1,0 +1,224 @@
+DrABCDE;Poznámka;Referenční hodnoty
+Nebezpečí;Zajistit vlastní bezpečnost a bezpečnost pacienta;–
+Krvácení;Zastavit masivní krvácení jako prioritu (život ohrožující!);–
+AVPU;Zhodnocení vědomí: Alert, Verbal, Pain, Unresponsive;A
+GCS;Glasgow Coma Scale – hodnotí se oči, slova, motorika;15 bodů (max)
+Kvalita vědomí (osoba, místo, čas);Hodnocení orientace – dezorientace může ukazovat na poruchu CNS;Orientován ve 3
+Zornice R/L mm;Sledujeme velikost, asymetrii, fixaci;2–5 mm, symetrické
+Fotoreakce přímá, nepřímá;Test mozkového kmene – poruchy u nitrolebních lézí;Obě přítomny
+Průchodnost dýchacích cest;Vyhodnotit obstrukci – jazyk, cizí těleso, otok;Volná
+Barva kůže (bledost, cyanóza, žlutá);Cyanóza = hypoxie, žloutenka = jaterní selhání, bledost = anémie/šok;Růžová
+Dechová frekvence;Tachypnoe může být příznak šoku, hypoxie, acidózy;12–20/min
+Symetrie dýchání;Asymetrie = pneumotorax, hemotorax, atelektáza;Symetrická
+Hloubka dýchání;Mělké dýchání při bolesti, centrální útlum;Normální
+Poslech – plíce;dechové fenomény: chrůpky, stridor, pískoty, ticho;
+Poslech – srdce;Ozvy, šelesty, akce;2 ozvy, bez šelestu
+SpO2;Saturace krve kyslíkem;≥ 95 %
+EtCO2;Endtidální CO2 – důležité při KPR, ventilaci;35–45 mmHg
+Centrální pulz (karotida);Posouzení přítomnosti pulzu – KPR při absenci;Přítomen
+Periferní pulz (a. radialis);Slabý/rychlý = známka šoku;Přítomen, symetrický
+Pravidelnost pulzu;Arytmie může být příčina nestability;Pravidelný
+Srdeční frekvence;Bradykardie/tachykardie – vliv na perfuzi;60–100/min
+EKG;základní hodnocení EKG;Rytmus, frekvence, osa, PQ, QRS, ST
+Krevní tlak;Hypotenze = šok, hypertenze = riziko krvácení;100–140 / 60–90 mmHg
+Kapilární návrat (CRT);Perfuzní parametr – šok = prodloužený;< 2 s
+BEFAST;Balance, Eyes, Face, Arms, Speech, Time;Screening CMP
+Jazyk;Výchylka = CMP, otok = alergie;Středová osa
+Tělesná teplota;Horečka, hypotermie;36,0–37,5 °C
+Hydratace;Sliznice, kožní turgor – suchost, plochý jazyk;Hydratovaný
+Bolest NRS 0–10;Subjektivní škála bolesti;0 (bez bolesti)
+Glykémie;Důležité u alterace vědomí;3,5–5,5 mmol/l
+Mechanismus úrazu;Vysoká energie = větší podezření na skryté poranění;Popsat přesně
+Váha;Hmotnost pacienta;–
+Výška;Pro výpočet BMI;–
+BMI;Riziko metabolických komplikací;18,5–24,9
+Hybnost;Omezení může ukazovat na neurologické/fyzikální poranění;Symetrická
+Meningeální příznaky;Ztuhlá šíje, Brudzinski, Kernig – meningitida;
+
+
+Léčba;poznámka
+Zajištění C-páteře;
+Léky;
+Oxygenoterapie;
+Umělá plicní ventilace;
+KPR;
+
+SBAR;poznámka
+Situation;
+Background;
+SAMPLE;Symptoms, Allergies, Medications, Past medical historry, Last oral intake, Everything else
+Assesment;DrABCDE
+Recomendations ;
+
+Od hlavy až k patě;poznámka
+Subjektivně;
+Bolest VAS, NRS;
+Dušnost;NYHA
+Palpitace;
+Stenokardie;
+Moč kolik;
+Moč jak vypadá;
+Dysurie;
+Stolice pravidelnost;
+Stolice forma;
+Stolice příměs;
+Chuť k jídlu;
+Dýchání;
+Únava;
+Uzliny;
+Bolest;
+Vstupy do těla;kanyly, katetry
+Objektivně;
+Habitus;Normostenický
+Orientovanost;
+Spolupráce;
+Hybnost;
+Stoj;
+Chůze;
+Eupnoe;
+Kůže;cyanoza, ikterus, eflorescence, krvácivé projevy, jizvy,
+Hydratace;turgor
+Hlava;
+Poklepově nebolestivá;
+Výstupy n. V bolestivost;
+Inervace n. VII;úsměv, zašklebení, zamračení
+Bulby ve středním postavení;
+Bulby volně pohyblivé;
+Nystagmus;
+Zornice izokorické;
+Zornice reakce přímá nepřímá;
+Skléry;
+Spojivky;
+Jazyk plazí středem;
+Jazyk povlak vlhkost;
+Chrup;sanace
+Tonzilly;
+Symetrie patrových oblouků;+uvula
+Výtok uši nos;
+Uzliny;
+Krk;
+Symetrie;
+Šíje volně pohyblivá;
+štítná žláza hmatná;
+Pulzace karotid;symetrie, šelest
+Náplň žil;
+Uzliny;
+Hrudník;
+Symetrie;
+Prsa;symetie, rezistence
+Poklep;plný?, jasný?
+Hranice plery;
+Dýchání ;čisté?, sklípkové?
+Akce srdeční;pravidelná?, klidná?
+Ozvy;jasné?,, 2 ohraničené?
+Šelest;
+Břicho;
+Úroveň;v úrovni hrudníku?
+Poklep;Diferencovaně bubínkový?, nebolestivý?
+Palpace;měkké?, nebolestivé?, bez hmatné rezistence?
+Peristaltika;přiměřená
+Játra;nepřesahují oblouk žeberní?
+Murphyho příznak;
+Hmatná slezina;
+Tapottement;bilaterálně negativní?
+Uzliny;třísla
+DK;
+Otok;
+Zánět/TEN;trombembolická nemoc
+Pulzace;
+Akra;teplá?
+Homansovo znamení;
+Plantární znamení;
+Hlubová palpace;nebolestivá
+Per rectum;
+Okolí anu;klidné
+Tonus svěrače;příměřený
+Ampula;volná?, bez matné rezistence?
+Prostata;nezvětšená?, elastická konzistence?,
+Na rukavici;zbytky hnědé stolice?
+
+Anamnéza;poznámka
+Minimální;jedna věta proč pacient přichází
+Rodinná;
+Pracovní ;
+Sociální;
+Alergická;
+Abusus;
+Gynekologická;
+Epidemiologická;
+Osobní;
+Farmakologická;
+Hodnotová;
+
+Příznaky;poznámka
+Allenův test;
+Amosův příznak trojnožky;
+Argvll-Robertsova reakce;
+Babinského příznak;
+Bakerova cysta;
+Ballotement;
+Bellův příznak;
+Blumbergův příznak;
+Boasův příznak;
+Brudzinského příznak;
+Čepojevova (Čepojova) vzdálenost;
+CHA2DS2-VASc;riziko embolizace do CNS u FIS
+Charcotova trias;
+Child Pugh skóre;
+Chvostkův příznak;
+Corriganův pulz;
+Courvoisierův příznak;
+Cullenovo znamení;
+Defense musculaire;
+Exsudát;
+Fluktuace;
+Fontainova klasifikace ICHDK;
+Forestierova distance;
+Forestierova fleche;
+Frénikový příznak;
+Graefeho příznak;
+Grey-Turnerovo znamení;
+HAS Bled skore;
+Hautanova zkouška;
+Hippocratica facies;
+Homansovo znamení;
+Hornerova trias (Claude-Bernard-Horner);
+Hunterova glossitida;
+Israeliho hmat;
+Keiser-Fleischnerův prstenec;
+Kernigův příznak;
+Koplikovovy skvrny;
+Lasegueův příznak;
+Lightova kritéria;
+Locus minoris Kiesselbachi;
+MCBurneyův bod;
+Mingazziniho příznak;
+Mobiův příznak;
+Monroův bod;
+Murphyho příznak;
+Mussetův příznak;
+Obturátorový příznak;
+Opozice šíje;
+Oslerovy uzlíky;
+Ottova inklinační vzdálenost;
+Ottova reklinační vzdálenost;
+Perthesův test;
+Plantární znamení;
+Pleniesův příznak;
+Psoatický příznak;
+Quinckého edém;
+Ratschowův test;
+Riedlův lalok;
+Rombergova zkouška;
+Rowsingův příznak;
+Schoberova distance;
+Škodův poklepový tón ;
+Spinální příznak;
+Stiborova distance;
+Stokesův límec;
+Syndrom horní duté žíly;
+Thomayerova vzdálenost;
+Tomayerova poklepová distribuce;
+Trendelenburgův tets;
+Virchowova uzlina;
+Wahlův příznak;

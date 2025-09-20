@@ -93,12 +93,12 @@ https://alphacephei.com/vosk/models
 převést audio na správný formát: ffmpeg -i input_audio.wav -ac 1 -ar 16000 -acodec pcm_s16le converted_audio.wav
 
 # Groq
+https://console.groq.com/
 
 pip install groq
 python3 -m pip install groq --break-system-packages
 
 export GROQ_API_KEY=tvuj-api-klic
-
 
 # GitIgnore
 
