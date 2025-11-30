@@ -2,3 +2,8 @@ recordings
 logs
 venv
 tests/vosk/audio files
+app/.env
+.env
+__pycache__/
+.venv/
+app/sessions
