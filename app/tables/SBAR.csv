@@ -1,0 +1,5 @@
+Název položky;Popis / Poznámky (Co říkám);Referenční meze / Norma (Příklad)
+S - Situation (Situace);"Identifikace volajícího, identifikace pacienta, důvod volání/přijetí. Stručný popis ""co se stalo teď"".";"""Jsem [Jméno], vezu pacienta XY, ročník XX, s akutní dušností a bolestí na hrudi."""
+B - Background (Pozadí);Anamnéza, okolnosti vzniku, relevantní chronická onemocnění, mechanismus úrazu.;"""Pacient léčený hypertonik, bolest vznikla v klidu před hodinou, užil Isoket bez efektu."""
+A - Assessment (Hodnocení);Aktuální stav pacienta (nález DrABCDE), vitální funkce, provedená opatření a reakce na léčbu.;"""TK 90/60, TF 110, SpO2 88%. Na EKG elevace ST. Podán ASA, Heparin, Fentanyl."""
+R - Recommendation (Doporučení);Co požaduji? Kam pacienta směřuji? Jaká je priorita?;"""Žádám o přípravu katetrizačního sálu (PCI) a převzetí na urgentním příjmu. Příjezd 5 min."""

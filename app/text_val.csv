@@ -1,0 +1,51 @@
+Položka,Popis,Norma
+Nebezpečí,Vyhodnocení bezpečnosti scény pro zachránce i pacienta.,Scéna je bezpečná.
+Mechanismus úrazu,Kinematika úrazu.,Nízkoenergetické násilí / Bez úrazu.
+Krvácení (masivní),Rychlá kontrola viditelného masivního krvácení. Priorita před dýchacími cestami.,Bez aktivního zevního krvácení.
+Průchodnost dýchacích cest,"Kontrola obstrukce: zapadlý jazyk, cizí těleso, zvratky, krev, otok.",Dýchací cesty volné.
+Symetrie dýchání,Zvedá se hrudník stejně.,Symetrické dýchací pohyby.
+Hloubka dýchání,Hodnocení objemu.,Adekvátní.
+Poslech plic,Vedlejší dechové fenomény.,Dýchání čisté.
+Kvalita pulsu,Pravidelnost a náplň pulsu.,"Pravidelný, plný."
+Teplota (kůže),Kontrola kůže.,"Teplá, růžová, suchá."
+Kvalita vědomí (Orientace),"Orientace vlastní osobou, místem a časem.",Plně orientován.
+Zornice (Velikost/Symetrie),"Izo/Anizokorie, Miotické/Mydriatické.","Izokorické (stejně velké), střední šíře."
+Fotoreakce,Reakce na osvit.,Reakce výbavná oboustranně.
+BEFAST,Screening cévní mozkové příhody.,Negativní.
+Meningeální příznaky,"Známky dráždění plen mozkových (opozice šíje, Brudzinski, Kernig).",Šíje volná.
+Celkový dojem (Habitus),"Stavba těla, výživa, poloha, chůze, úprava.","Normostenický, volně pohyblivý, spolupracující."
+Kůže a hydratace,"Barva, turgor, teplota, jizvy, eflorescence, vstupy.","Růžová, teplá, turgor normální, bez eflorescencí."
+Hlava - Oči,"Zornice, nystagmus, skléry, spojivky, postavení bulbů.","Zornice izokorické, fotoreakce +, bez nystagmu."
+Hlava - Ústa/Tvář,"Jazyk, inervace n. VII , hrdlo, chrup/protéza.","Hrdlo klidné, jazyk vlhký, plazí středem, inervace symetrická."
+Krk,"Náplň krčních žil, štítná žláza, pulzace karotid, uzliny, pohyblivost.","Žíly v niveau, šíje volná, karotidy symetrické, bez šelestu."
+Hrudník - Plíce,"Dechové fenomény, dýchání, symetrie pohybů.","Dýchání alveolární, čisté, bez vedlejších fenoménů."
+Hrudník - Srdce,"Srdeční akce, ozvy, šelesty.","Akce pravidelná, ozvy 2 ohranicˇeneˊ, bez šelestů."
+Břicho,"Palpace, peristaltika, bolestivost, obranné napětí.","Měkké, nebolestivé, peristaltika přítomna."
+Končetiny,"Otoky, pulzace, pohyblivost, citlivost.","Bez otoků, pulzace hmatné, pohyblivost neomezena."
+Neurologie,"Reflexy, patologické reflexy.","Reflexy normální, bez patologických reflexů."
+Nynější onemocnění (NO),"Důvod příchodu, vedoucí příznaky (kdy, charakter bolesti, intenzita, propagace).",Pacient bez subjektivních obtíží.
+Rodinná anamnéza (RA),Výskyt chorob u pokrevních příbuzných.,"Bez genetické zátěže, rodiče a sourozenci zdrávi."
+Osobní anamnéza (OA),"Přehled prodělaných nemocí, operací a úrazů.","Pacient se s ničím neléčí, operace neprodělal."
+Pracovní anamnéza (PA),"Povolání, rizikové faktory.",Práce bez rizikových faktorů.
+Sociální anamnéza (SA),"Bydlení, soběstačnost, rodinné zázemí, stresové faktory.","Stabilní zázemí, soběstačný, bez výrazného stresu."
+Alergická anamnéza (AA),"Léky, potraviny, hmyz, jód, náplasti. Typ reakce.",Neguje alergie.
+Farmakologická (FA),"Seznam léků, forma užívání, compliance.",Neužívá žádné léky.
+Abusus,"Kouření, alkohol, drogy, káva.","Nekuřák, alkohol příležitostně, drogy neguje."
+Zajištění dýchacích cest (Basic),"Záklon hlavy, předsunutí čelisti, vzduchovod.",Průchodné dýchací cesty.
+Zajištění dýchacích cest (Advanced),"ETI, LMA/iGel, Koniotomie.","Definitivní zajištění DC, EtCO2​ 35–45 mmHg."
+Umělá plicní ventilace (UPV),"Ambuvak, transportní ventilátor.","Normoventilace, adekvátní objem hrudníku."
+KPR (Resuscitace),"Komprese hrudníku, defibrilace, léky.","Kvalitní komprese (hloubka 5−6 cm, frekvence 100−120/min)."
+Zajištění cévního vstupu,"Periferní žilní katetr (PŽK), Intraoseální vstup (IO).",Funkční linka pro podání léků/tekutin.
+Zástava masivního krvácení,"Tlakový obvaz, Tourniquet, Packing, Pánevní pás.",Zástava zevního krvácení.
+Polohování,"Trendelenburg, Fowler, Stabilizovaná poloha.",Poloha dle stavu.
+Analgezie a Sedace,Tišení bolesti a zklidnění pacienta.,Adekvátní úleva od bolesti/zklidnění.
+Nitroglycerin (Isoket),"Angina pectoris, plicní edém.",1–2 vstrˇiky s.l. nebo sprej / i.v. dle tlaku.
+Urapidil (Ebrantil),Akutní hypertenzní krize.,10–50 mg i.v. bolus.
+Glukóza 40% (G40),Hypoglykémie.,40–80 ml i.v. bolus.
+"NaCl 0,9% (fyziologický roztok)","Objemová resuscitace, ředění léků.",Bolus 250–500 ml / Infuze dle potřeby.
+Doplňkové - LMA/iGel,Zajištění dýchacích cest.,Správná velikost a těsnění.
+Doplňkové - Kardioverze (Synchronizovaná),Výboj u tachykardie s oběhovým selháním.,50–200 J (dle rytmu).
+S - Situation (Situace),"Identifikace, pacient, důvod volání/přijetí.","""Jsem [Jméno], vezu pacienta XY s dušností."""
+B - Background (Pozadí),"Anamnéza, okolnosti vzniku, chronická onemocnění, mechanismus úrazu.","""Hypertonik, bolest vznikla před hodinou v klidu, užil Isoket bez efektu."""
+A - Assessment (Hodnocení),"Aktuální stav (DrABCDE), vitální funkce, provedená opatření a reakce.","""TK 90/60, TF 110, SpO2​ 88%. Podán ASA, Heparin, Fentanyl."""
+R - Recommendation (Doporučení),"Požadavek, kam pacienta směřuji, priorita.","""Žádám o přípravu katetrizačního sálu (PCI) a převzetí."""

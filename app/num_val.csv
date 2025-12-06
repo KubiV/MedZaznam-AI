@@ -1,0 +1,31 @@
+Položka,Popis,Norma
+Dechová frekvence (DF),Počet dechů za minutu. Tachypnoe vs. Bradypnoe.,Dospělý: 12–20 dechů/min.
+SpO2 (Saturace),Procento hemoglobinu nasyceného kyslíkem.,≥95 %.
+Krevní tlak (TK),Měření manžetou. Hypotenze vs. Hypertenze.,100–140/60–90 mmHg.
+Plnění kapilár (CRT),Návrat barvy po stisknutí nehtového lůžka.,Pod 2 sekundy.
+Vědomí (AVPU/GCS),Reakce na A-S-M/Hodnocení GCS.,GCS 15 bodu˚ (Plné vědomí).
+Glykémie,Hladina cukru v krvi.,"3,5–5,5 mmol/l (nalačno), náhodná <11 mmol/l."
+Vědomí a orientace,Orientace O-M-Č. Spolupráce.,"Při vědomí, orientován (GCS 15)."
+Kontrola tělesné teploty,Hodnocení Hypotermie/Hypertermie.,"Normotermie (36,5–37,5∘C)."
+Oxygenoterapie,"Podávání kyslíku (Nosní brýle, maska).",Cílová SpO2​ 94–98 % (u CHOPN 88–92 %).
+Doplňkové - Kapnometrie (EtCO2),Měření oxidu uhličitého ve vydechovaném vzduchu.,35–45 mmHg.
+Doplňkové - Defibrilace (AED),Výboj u VF/pVT.,Bifazicky 150–200 J.
+Adrenalin,"KPR, Anafylaxe, těžká bradykardie.","KPR: 1 mg i.v. á 3−5 min / Anafylaxe:0,3−0,5 mg i.m."
+Amiodaron,Refrakterní VF/pVT.,"KPR: 300 mg i.v. (po 3. vyˊ​boji), opakovat 150 mg."
+Atropin,"Symptomatická bradykardie, intoxikace organofosfáty.","0,5–1 mg i.v. (max 3 mg)."
+Noradrenalin,Vazopresor u šokových stavů.,"Kontinuálně dávkovačem (naprˇ. 0,05–1μcg/kg/min)."
+Adenosin,Paroxysmální SVT.,"6 mg i.v. bolus (rychle!), při neúspěchu 12 mg,12 mg."
+Midazolam,"Sedace, křeče.","2,5–5 mg i.v./i.m./i.n. (titračně)."
+Fentanyl,"Silné analgetikum (traumata, infarkt).",1–2μcg/kg i.v. (titračně).
+Ketamin,"Analgezie, sedace, anestezie.","Analgezie: 0,1–0,3 mg/kg / Anestezie: 1–2 mg/kg i.v."
+Propofol,"Úvod do anestezie, sedace.","1,5–2,5 mg/kg i.v. (úvod)."
+Sufentanil,Velmi silné opioidní analgetikum.,"0,1–0,3μcg/kg i.v."
+Rokuronium,Nedepolarizující myorelaxans (pro intubaci).,"0,6–1,2 mg/kg i.v."
+Sukcinylcholin,Depolarizující myorelaxans (rychlý úvod - RSI).,"1–1,5 mg/kg i.v."
+Aspirin (ASA),Akutní koronární syndrom (AKS).,200–250 mg i.v. (nebo p.o. rozkousat).
+Heparin,"AKS, plicní embolie.",5000 IU i.v. bolus.
+Furosemid,"Plicní edém, levostranné srdeční selhání.",20–40 mg i.v.
+Salbutamol (Ventolin),"Bronchodilatace (Astma, CHOPN).","Inhalačně (nebuliace) 2,5–5 mg."
+Morfin,"Silná bolest, infarkt myokardu, plicní edém.",2–5 mg i.v. (opakovat).
+Kyselina tranexamová (TXA),"Krvácení, trauma (do 3 hodin).",1 g i.v. bolus +1 g infuze.
+Ondansetron,"Nevolnost, zvracení.",4–8 mg i.v. / p.o.

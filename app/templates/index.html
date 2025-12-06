@@ -5,45 +5,117 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lékařský Hlasový Záznamník</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.5/client-dist/socket.io.min.js"></script>
     <style>
-        body { padding: 20px; background-color: #f8f9fa; }
-        .container { max-width: 1200px; }
-        .status-box { font-weight: bold; color: #333; min-height: 24px; }
+        body { padding: 20px; background-color: #f0f2f5; transition: background-color 0.5s ease; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container-fluid { max-width: 1600px; }
+        
+        /* === UNIVERZÁLNÍ KARTA (WIDGET) === */
+        .widget-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+            border: none;
+            margin-bottom: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-top: 4px solid #ccc;
+        }
+
+        .widget-header {
+            padding: 12px 20px;
+            background: #fff;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            transition: background-color 0.2s;
+        }
+        .widget-header:hover { background-color: #f8f9fa; }
+        .widget-header h5 { margin: 0; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .widget-body { padding: 20px; flex-grow: 1; }
+        
+        /* Animace šipky */
+        .chevron-icon { transition: transform 0.3s ease; color: #adb5bd; }
+        [aria-expanded="true"] .chevron-icon { transform: rotate(0deg); }
+        [aria-expanded="false"] .chevron-icon { transform: rotate(-90deg); }
+
+        /* === HLAVNÍ SEKCE (NOVÉ) === */
+        .main-section-header {
+            cursor: pointer;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+            margin-top: 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: color 0.2s;
+        }
+        .main-section-header:hover { color: #0d6efd !important; border-bottom-color: #0d6efd; }
+        .main-section-header h4 { margin: 0; font-weight: 600; }
+
+        /* === SPECIFICKÉ BARVY KARET === */
+        .card-Voice { border-top-color: #0d6efd; } .card-Voice .widget-header h5 { color: #0d6efd; }
+        .card-Manual { border-top-color: #198754; } .card-Manual .widget-header h5 { color: #198754; }
+        .card-Transcript { border-top-color: #6610f2; } .card-Transcript .widget-header h5 { color: #6610f2; }
+        .card-JSON { border-top-color: #fd7e14; } .card-JSON .widget-header h5 { color: #fd7e14; }
+        .card-DrABCDE { border-top-color: #dc3545; } .card-DrABCDE .widget-header h5 { color: #dc3545; }
+        .card-Medication { border-top-color: #198754; } .card-Medication .widget-header h5 { color: #198754; }
+        .card-Interventions { border-top-color: #0d6efd; } .card-Interventions .widget-header h5 { color: #0d6efd; }
+        .card-Physical { border-top-color: #ffc107; } .card-Physical .widget-header h5 { color: #d39e00; }
+        .card-History { border-top-color: #6c757d; } .card-History .widget-header h5 { color: #6c757d; }
+        .card-SBAR { border-top-color: #0dcaf0; } .card-SBAR .widget-header h5 { color: #0aa2c0; }
+        .card-Other { border-top-color: #20c997; } .card-Other .widget-header h5 { color: #20c997; }
+
+        /* === PRVKY UVNITŘ === */
         .transcription-box, .ai-processing-box { 
-            margin-top: 10px; 
-            padding: 15px; 
+            padding: 10px; 
             border: 1px solid #dee2e6; 
-            border-radius: 8px; 
-            background-color: #fff;
-            min-height: 60px;
+            border-radius: 6px; 
+            background-color: #f8f9fa;
+            min-height: 80px;
+            max-height: 250px;
+            overflow-y: auto;
         }
-        .ai-processing-box { white-space: pre-wrap; font-family: monospace; background-color: #e9ecef; }
-        .table-responsive { margin-top: 15px; }
-        .form-check-input:checked { background-color: #0d6efd; border-color: #0d6efd; }
-        .form-check-label { font-weight: bold; }
-        #micButton.btn-danger { animation: pulse 1.5s infinite; }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        .ai-processing-box { 
+            font-family: 'Consolas', 'Monaco', monospace; 
+            font-size: 0.85rem; 
+            color: #d63384; 
+            background-color: #fff0f6;
+            border-color: #ffecf5;
         }
+        .status-box { font-weight: bold; color: #555; margin-top: 10px; min-height: 24px; }
+        .table-responsive { max-height: 400px; overflow-y: auto; scrollbar-width: thin; }
+        
         .control-panel {
             background: white;
-            padding: 15px;
+            padding: 15px 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
             margin-bottom: 20px;
             flex-wrap: wrap; 
+        }
+
+        #micButton.btn-danger { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.6); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Lékařský Hlasový Záznamník</h1>
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#settingsCollapse" aria-expanded="true" aria-controls="settingsCollapse">
-                <span id="toggleIcon">−</span> Nastavení
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4 pt-2">
+            <h2 class="mb-0"><i class="bi bi-activity text-danger"></i> Lékařský Hlasový Záznamník</h2>
+            <button class="btn btn-light border btn-sm text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#settingsCollapse" aria-expanded="true">
+                <i class="bi bi-sliders"></i> Nastavení
             </button>
         </div>
 
@@ -51,80 +123,240 @@
             <div class="control-panel d-flex gap-4 align-items-center" id="controlPanel">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="aiProviderSwitch" {{ 'checked' if provider == 'groq' }}>
-                    <label class="form-check-label" for="aiProviderSwitch">
+                    <label class="form-check-label small text-uppercase fw-bold text-muted" for="aiProviderSwitch">
                         <span id="providerLabel">Model: {{ provider.upper() }}</span>
                     </label>
                 </div>
-
-                <div class="vr"></div>
-
+                <div class="vr text-muted"></div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="audioSaveSwitch" {{ 'checked' if save_audio }}>
-                    <label class="form-check-label" for="audioSaveSwitch">
-                        <span id="audioSaveLabel">Nahrávat zvuk (MP3): {{ 'ZAP' if save_audio else 'VYP' }}</span>
+                    <label class="form-check-label small text-uppercase fw-bold text-muted" for="audioSaveSwitch">
+                        <span id="audioSaveLabel">Ukládat MP3</span>
                     </label>
                 </div>
-                
-                <div class="vr"></div>
-
+                <div class="vr text-muted"></div>
                 <div class="d-flex align-items-center gap-2">
-                    <label for="micSelect" class="form-label mb-0 fw-bold">Mikrofon:</label>
-                    <select class="form-select form-select-sm" id="micSelect" style="max-width: 250px;">
-                        <option value="default">Výchozí systémový</option>
+                    <i class="bi bi-mic text-muted"></i>
+                    <select class="form-select form-select-sm border-0 bg-light" id="micSelect" style="max-width: 250px;">
+                        <option value="default">Výchozí mikrofon</option>
                     </select>
                 </div>
-
-                <div class="vr"></div>
-
-                <button id="resetSessionBtn" class="btn btn-warning btn-sm fw-bold">
-                    Resetovat Seanci
+                <div class="vr text-muted ms-auto"></div>
+                <button id="resetSessionBtn" class="btn btn-outline-danger btn-sm fw-bold border-0">
+                    <i class="bi bi-trash"></i> Resetovat data
                 </button>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-md-6">
-                <h3>Hlasové ovládání</h3>
-                <button id="micButton" class="btn btn-primary btn-lg">Spustit mikrofon</button>
-                <div id="status" class="status-box mt-2">Připraven</div>
-                <div id="processing" class="text-primary" style="display: none;">Zpracovávám...</div>
-            </div>
-            <div class="col-md-6">
-                <h3>Manuální vstup</h3>
-                <form action="/process" method="POST">
-                    <div class="mb-3">
-                        <textarea class="form-control" id="textInput" name="text_input" rows="3" placeholder="Zadejte text (např. 'SpO2 95, tep 110')"></textarea>
+        <div class="main-section-header text-secondary" data-bs-toggle="collapse" data-bs-target="#sectionInputs" aria-expanded="true">
+            <h4><i class="bi bi-cpu"></i> Přepis a extrakce dat</h4>
+            <i class="bi bi-chevron-down chevron-icon"></i>
+        </div>
+
+        <div id="sectionInputs" class="collapse show">
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="widget-card card-Voice">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseVoice" aria-expanded="true">
+                            <h5><i class="bi bi-mic-fill"></i> Hlasové ovládání</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseVoice" class="collapse show">
+                            <div class="widget-body text-center">
+                                <button id="micButton" class="btn btn-primary btn-lg w-100 py-3 shadow-sm rounded-pill">
+                                    <i class="bi bi-play-circle-fill me-2"></i> Spustit záznam
+                                </button>
+                                <div class="d-flex justify-content-center align-items-center gap-2 mt-3">
+                                    <div id="status" class="status-box mb-0">Připraven</div>
+                                    <div id="processing" class="text-primary" style="display: none;">
+                                        <div class="spinner-grow spinner-grow-sm" role="status"></div> Zpracovávám...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-success">Zpracovat text</button>
-                </form>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="widget-card card-Manual">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseManual" aria-expanded="true">
+                            <h5><i class="bi bi-keyboard-fill"></i> Manuální vstup</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseManual" class="collapse show">
+                            <div class="widget-body">
+                                <form action="/process" method="POST">
+                                    <div class="input-group h-100">
+                                        <textarea class="form-control border-success-subtle" id="textInput" name="text_input" rows="3" placeholder="Zadejte diktát textem..."></textarea>
+                                        <button type="submit" class="btn btn-success px-4">
+                                            <i class="bi bi-send-fill"></i><br>Odeslat
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="widget-card card-Transcript">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseTrans" aria-expanded="true">
+                            <h5><i class="bi bi-chat-left-text-fill"></i> Poslední přepis řeči</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseTrans" class="collapse show">
+                            <div class="widget-body">
+                                <div id="lastTranscription" class="transcription-box">
+                                    <em class="text-muted">Zde se objeví text...</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="widget-card card-JSON">
+                        <div class="widget-header collapsed" data-bs-toggle="collapse" data-bs-target="#collapseJson" aria-expanded="false">
+                            <h5><i class="bi bi-filetype-json"></i> Extrahovaná data (JSON)</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseJson" class="collapse"> 
+                            <div class="widget-body">
+                                <div id="aiProcessing" class="ai-processing-box">{}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="main-section-header text-secondary" data-bs-toggle="collapse" data-bs-target="#sectionTables" aria-expanded="true">
+            <h4><i class="bi bi-clipboard2-pulse"></i> Strukturovaný stav pacienta</h4>
+            <i class="bi bi-chevron-down chevron-icon"></i>
         </div>
         
-        <hr class="my-4">
+        <div id="sectionTables" class="collapse show">
+            <div class="row g-4 pb-5">
+                
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-DrABCDE">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseDrABCDE" aria-expanded="true">
+                            <h5>DrABCDE</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseDrABCDE" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div id="table-DrABCDE" class="table-responsive p-3">
+                                    {{ tables['DrABCDE']|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="row">
-            <div class="col-md-6">
-                <h4>Poslední přepis řeči:</h4>
-                <div id="lastTranscription" class="transcription-box">Zatím žádný přepis...</div>
-            </div>
-            <div class="col-md-6">
-                <h4>Extrahovaná data (JSON):</h4>
-                <div id="aiProcessing" class="ai-processing-box">Čekám na data...</div>
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-Medication">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseMedication" aria-expanded="true">
+                            <h5>Léky (Medication)</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseMedication" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div id="table-Medication" class="table-responsive p-3">
+                                    {{ tables['Medication']|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-Interventions">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseInterventions" aria-expanded="true">
+                            <h5>Výkony (Interventions)</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseInterventions" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div id="table-Interventions" class="table-responsive p-3">
+                                    {{ tables['Interventions']|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-Physical">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapsePhysical" aria-expanded="true">
+                            <h5>Vyšetření (Physical Exam)</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapsePhysical" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div id="table-Physical_Examination" class="table-responsive p-3">
+                                    {{ tables['Physical Examination']|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-History">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseHistory" aria-expanded="true">
+                            <h5>Anamnéza (History)</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseHistory" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div id="table-History" class="table-responsive p-3">
+                                    {{ tables['History']|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-SBAR">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseSBAR" aria-expanded="true">
+                            <h5>SBAR Report</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseSBAR" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div id="table-SBAR" class="table-responsive p-3">
+                                    {{ tables['SBAR']|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-Other">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseOther" aria-expanded="true">
+                            <h5>Ostatní (Other)</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseOther" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div id="table-Other" class="table-responsive p-3">
+                                    {% if tables['Other'] %}
+                                        {{ tables['Other']|safe }}
+                                    {% else %}
+                                        <p class="text-muted text-center mt-3 small">Žádné nezařazené položky.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <h3 class="mt-5">Aktuální stav pacienta</h3>
-        <div class="row">
-            <div class="col-lg-6">
-                <h4>Číselné hodnoty</h4>
-                <div id="numericTable" class="table-responsive">{{ numeric_table|safe }}</div>
-            </div>
-            <div class="col-lg-6">
-                <h4>Textové záznamy</h4>
-                <div id="textTable" class="table-responsive">{{ text_table|safe }}</div>
-            </div>
         </div>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -137,139 +369,107 @@
         const micButton = document.getElementById('micButton');
         const transcriptionDiv = document.getElementById('lastTranscription');
         const aiProcessingDiv = document.getElementById('aiProcessing');
-        const numericTableDiv = document.getElementById('numericTable');
-        const textTableDiv = document.getElementById('textTable');
         
-        // Switche a nové ovládací prvky
         const providerSwitch = document.getElementById('aiProviderSwitch');
         const providerLabel = document.getElementById('providerLabel');
         const audioSaveSwitch = document.getElementById('audioSaveSwitch');
-        const audioSaveLabel = document.getElementById('audioSaveLabel');
         const micSelect = document.getElementById('micSelect');
         const resetBtn = document.getElementById('resetSessionBtn');
 
-        // Socket.IO Listeners
+        // Socket.IO
         socket.on('connect', () => {
             console.log('Socket.IO připojeno');
             socket.emit('get_devices');
         });
         
         socket.on('disconnect', () => statusDiv.textContent = 'Odpojeno od serveru');
-        socket.on('connect_error', (err) => statusDiv.textContent = `Chyba připojení: ${err.message}`);
 
         socket.on('devices_list', (devices) => {
             const currentVal = micSelect.value;
-            micSelect.innerHTML = '<option value="default">Výchozí systémový</option>';
+            micSelect.innerHTML = '<option value="default">Výchozí mikrofon</option>';
             devices.forEach(device => {
                 const option = document.createElement('option');
                 option.value = device.index;
                 option.textContent = device.name;
                 micSelect.appendChild(option);
             });
-            if (currentVal && [...micSelect.options].some(o => o.value === currentVal)) {
-                micSelect.value = currentVal;
-            }
+            if (currentVal && [...micSelect.options].some(o => o.value === currentVal)) micSelect.value = currentVal;
         });
 
         socket.on('recording_started', () => {
-            micButton.textContent = 'Zastavit mikrofon';
-            micButton.classList.remove('btn-primary');
-            micButton.classList.add('btn-danger');
+            micButton.innerHTML = '<i class="bi bi-stop-circle-fill me-2"></i> Zastavit záznam';
+            micButton.classList.replace('btn-primary', 'btn-danger');
             statusDiv.textContent = 'Naslouchám...';
             providerSwitch.disabled = true;
             audioSaveSwitch.disabled = true;
-            micSelect.disabled = true;
-            resetBtn.disabled = true;
         });
 
         socket.on('recording_stopped', () => {
-            micButton.textContent = 'Spustit mikrofon';
-            micButton.classList.remove('btn-danger');
-            micButton.classList.add('btn-primary');
+            micButton.innerHTML = '<i class="bi bi-play-circle-fill me-2"></i> Spustit záznam';
+            micButton.classList.replace('btn-danger', 'btn-primary');
             statusDiv.textContent = 'Připraven';
             processingDiv.style.display = 'none';
             providerSwitch.disabled = false;
             audioSaveSwitch.disabled = false;
-            micSelect.disabled = false;
-            resetBtn.disabled = false;
         });
         
-        socket.on('speech_start', () => statusDiv.textContent = 'Detekována řeč...');
+        socket.on('speech_start', () => statusDiv.textContent = 'Detekuji hlas...');
         socket.on('speech_end', () => {
-            statusDiv.textContent = 'Ukončeno, zpracovávám...';
+            statusDiv.textContent = 'Zpracovávám...';
             processingDiv.style.display = 'block';
         });
 
         socket.on('transcription_result', (data) => transcriptionDiv.textContent = data.text);
 
         socket.on('table_update', (data) => {
-            numericTableDiv.innerHTML = data.numeric_table;
-            textTableDiv.innerHTML = data.text_table;
+            const updateEl = (id, content) => {
+                const el = document.getElementById(id);
+                if(el && content) el.innerHTML = content;
+            };
+
+            if(data.tables) {
+                updateEl('table-DrABCDE', data.tables['DrABCDE']);
+                updateEl('table-Medication', data.tables['Medication']);
+                updateEl('table-Interventions', data.tables['Interventions']);
+                updateEl('table-Physical_Examination', data.tables['Physical Examination']);
+                updateEl('table-History', data.tables['History']);
+                updateEl('table-SBAR', data.tables['SBAR']);
+                updateEl('table-Other', data.tables['Other']);
+            }
+            
             aiProcessingDiv.textContent = JSON.stringify(data.extracted_data, null, 2);
             processingDiv.style.display = 'none';
-            statusDiv.textContent = 'Hotovo, připraven';
+            statusDiv.textContent = 'Hotovo';
         });
 
         socket.on('session_reset_complete', (data) => {
-            statusDiv.textContent = data.message;
-            transcriptionDiv.textContent = "Seance resetována.";
-            aiProcessingDiv.textContent = "Data vymazána.";
-            document.body.style.backgroundColor = "#e8f5e9";
-            setTimeout(() => { document.body.style.backgroundColor = "#f8f9fa"; }, 500);
-        });
-        
-        socket.on('processing_error', (data) => {
-            aiProcessingDiv.textContent = `Chyba: ${data.message}`;
-            processingDiv.style.display = 'none';
-            statusDiv.textContent = 'Chyba při zpracování';
+            transcriptionDiv.innerHTML = '<em class="text-muted">Vymazáno.</em>';
+            aiProcessingDiv.textContent = "{}";
+            statusDiv.textContent = "Resetováno";
         });
         
         socket.on('provider_changed', (data) => {
             providerLabel.textContent = `Model: ${data.provider.toUpperCase()}`;
         });
 
-        socket.on('audio_save_changed', (data) => {
-            audioSaveLabel.textContent = `Nahrávat zvuk (MP3): ${data.save ? 'ZAP' : 'VYP'}`;
-        });
-
-        // Event Listeners
+        // Listeners
         micButton.addEventListener('click', () => {
-            if (micButton.textContent.includes('Spustit')) {
-                socket.emit('start_recording');
-            } else {
-                socket.emit('stop_recording');
-            }
+            if (micButton.innerHTML.includes('Spustit')) socket.emit('start_recording');
+            else socket.emit('stop_recording');
         });
 
         providerSwitch.addEventListener('change', () => {
-            const provider = providerSwitch.checked ? 'groq' : 'local';
-            socket.emit('set_ai_provider', { provider: provider });
+            socket.emit('set_ai_provider', { provider: providerSwitch.checked ? 'groq' : 'local' });
         });
 
         audioSaveSwitch.addEventListener('change', () => {
             socket.emit('toggle_audio_save', { save: audioSaveSwitch.checked });
         });
 
-        micSelect.addEventListener('change', () => {
-            socket.emit('set_device', { device_index: micSelect.value });
-        });
+        micSelect.addEventListener('change', () => socket.emit('set_device', { device_index: micSelect.value }));
 
         resetBtn.addEventListener('click', () => {
-            if (confirm("Opravdu chcete resetovat seanci? Všechna aktuální data v tabulce budou skryta a začne se nový záznam.")) {
-                socket.emit('reset_session');
-            }
-        });
-
-        // Nová logika pro ikonu panelu nastavení (založená na Bootstrap eventech)
-        const settingsCollapseElement = document.getElementById('settingsCollapse');
-        const toggleIcon = document.getElementById('toggleIcon');
-
-        settingsCollapseElement.addEventListener('hide.bs.collapse', () => {
-            toggleIcon.textContent = '+';
-        });
-
-        settingsCollapseElement.addEventListener('show.bs.collapse', () => {
-            toggleIcon.textContent = '−';
+            if (confirm("Smazat všechna data?")) socket.emit('reset_session');
         });
     </script>
 </body>

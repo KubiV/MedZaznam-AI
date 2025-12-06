@@ -32,7 +32,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSIONS_BASE_DIR = os.path.join(BASE_DIR, 'sessions') # Nová hlavní složka pro seance
 # MODEL_PATH = os.path.join(BASE_DIR, "vosk-model-small-cs-0.4-rhasspy") 
 MODEL_PATH = "/Users/jakubvavra/Documents/GitHub/Automonitoring-with-AI/tests/vosk/vosk-model-small-cs-0.4-rhasspy"
-CSV_DATA_PATH = os.path.join(BASE_DIR, 'Hodnoty MED.csv')
 
 # --- AUDIO PARAMETRY ---
 RATE = 16000
@@ -53,13 +52,13 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 AI_PROVIDER = 'local'  # Výchozí hodnota: 'local' nebo 'groq'
 
 # -- Nastavení pro LOKÁLNÍ OLLAMA modely --
-LOCAL_MODEL_NAME = "gemma3" # gemma3:1b, gemma3:4b, deepseek-r1:1.5b
+LOCAL_MODEL_NAME = "gemma3:4b" # gemma3:1b, gemma3:4b, deepseek-r1:1.5b
 LOCAL_TEMPERATURE = 0.1     # Nižší teplota = přesnější extrakce dat, méně "kreativity"
 
 # -- Nastavení pro GROQ modely --
 GROQ_MODEL_NAME = "llama-3.1-8b-instant" # llama-3.3-70b-versatile, llama-3.1-8b-instant
 GROQ_TEMPERATURE = 0.2
-GROQ_TRANSCRIPTION_MODEL = "whisper-large-v3" # whisper-large-v3-turbo, whisper-large-v3
+GROQ_TRANSCRIPTION_MODEL = "whisper-large-v3-turbo" # whisper-large-v3-turbo, whisper-large-v3
 
 # -- Nastavení nahrávání --
 SAVE_CONTINUOUS_AUDIO = False # Výchozí stav ukládání audia
@@ -70,6 +69,22 @@ speech_processor = None
 is_recording = False
 recording_lock = threading.Lock()
 
+# --- DEFINICE KATEGORIÍ A SOUBORŮ ---
+# UPRAVENO: Přidána 7. kategorie "Other"
+CATEGORY_FILES = {
+    "DrABCDE": "tables/DrABCDE.csv",
+    "Medication": "tables/Medication.csv",
+    "Interventions": "tables/Interventions.csv",
+    "Physical Examination": "tables/Physical Examination.csv",
+    "History": "tables/History.csv",
+    "SBAR": "tables/SBAR.csv",
+    "Other": "tables/Other.csv" 
+}
+
+# Globální úložiště pro tabulky a mapování
+data_tables = {}     # { "DrABCDE": DataFrame, "Medication": DataFrame, ... }
+item_mapping = {}    # { "Položka": "DrABCDE", ... } slouží k rychlému nalezení, do jaké tabulky položka patří
+all_known_items = [] # Seznam všech položek pro LLM prompt
 
 # --- SPRÁVA LOGOVÁNÍ A ADRESÁŘŮ ---
 
@@ -145,9 +160,7 @@ def log_startup_parameters():
     logging.info(f"BASE_DIR: {BASE_DIR}")
     logging.info(f"SESSIONS_BASE_DIR: {SESSIONS_BASE_DIR}")
     logging.info(f"MODEL_PATH: {MODEL_PATH}")
-    logging.info(f"CSV_DATA_PATH: {CSV_DATA_PATH}")
     logging.info(f"Model dostupný: {os.path.exists(MODEL_PATH)}")
-    logging.info(f"CSV dostupný: {os.path.exists(CSV_DATA_PATH)}")
     
     # Mikrofon
     logging.info("--- NASTAVENÍ MIKROFONU ---")
@@ -199,38 +212,60 @@ def get_or_create_session_dir(force_new=False):
         # Pokud žádná neexistuje (úplně první start), vytvoříme novou
         return get_or_create_session_dir(force_new=True)
 
-# --- NAČTENÍ A PŘÍPRAVA DAT ---
+# --- NAČTENÍ A PŘÍPRAVA DAT (NOVÉ PRO 6+1 TABULEK) ---
 def initialize_data_structures():
-    global df_med_items, numeric_items, text_items, df_numeric_state, df_text_state
+    global data_tables, item_mapping, all_known_items
     
-    try:
-        df_med_items = pd.read_csv(CSV_DATA_PATH, delimiter=';')
-        df_med_items.rename(columns={'DrABCDE': 'Položka'}, inplace=True)       
+    data_tables = {}
+    item_mapping = {}
+    all_known_items = []
+    
+    for category, filename in CATEGORY_FILES.items():
+        csv_path = os.path.join(BASE_DIR, filename)
         
-        numeric_items = []
-        text_items = []
-        
-        for _, row in df_med_items.iterrows():
-            if pd.notna(row['Referenční hodnoty']):
-                ref_val = str(row['Referenční hodnoty'])
-                if any(char.isdigit() for char in ref_val):
-                    numeric_items.append(row['Položka'])
-                else:
-                    text_items.append(row['Položka'])
+        try:
+            # Načteme CSV, oddělovač je středník
+            df = pd.read_csv(csv_path, delimiter=';')
+            
+            # Předpokládáme, že název položky je v PRVNÍM sloupci (index 0)
+            # Ať se sloupec jmenuje jakkoliv (DrABCDE, Název položky, Položka...)
+            first_col_name = df.columns[0]
+            
+            # Nastavíme první sloupec jako index
+            df.set_index(first_col_name, inplace=True)
+            df.index.name = "Položka" # Sjednotíme název indexu pro vizualizaci
+            
+            # Vytvoříme sloupec pro počáteční stav (zatím prázdný)
+            df['Aktuální stav'] = ""
+            
+            # Vybereme jen sloupec 'Aktuální stav' pro naši runtime tabulku, 
+            # ale můžeme si pamatovat i metadata pokud bychom chtěli tooltipy.
+            # Pro zjednodušení bereme jen index a stav.
+            clean_df = df[['Aktuální stav']].copy()
+            
+            # Uložíme do slovníku tabulek
+            data_tables[category] = clean_df
+            
+            # Mapování pro AI a vyhledávání
+            for item in clean_df.index:
+                item_str = str(item).strip()
+                if item_str:
+                    item_mapping[item_str.lower()] = category # Case-insensitive mapování
+                    all_known_items.append(item_str)
+                    
+            logging.info(f"Načtena kategorie {category} ze souboru {filename} ({len(clean_df)} položek).")
+
+        except FileNotFoundError:
+            # UPRAVENO: Pokud soubor neexistuje (což u Other ze začátku nebude), vytvoří se prázdná tabulka bez chyb
+            if category == "Other":
+                logging.info(f"Info: Vytvářím prázdnou tabulku pro kategorii {category}.")
             else:
-                text_items.append(row['Položka'])
-
-        df_numeric_state = pd.DataFrame({'Počáteční stav': np.nan}, index=numeric_items)
-        df_text_state = pd.DataFrame({'Počáteční stav': ''}, index=text_items)
-        df_numeric_state.index.name = "Položka"
-        df_text_state.index.name = "Položka"
-
-    except FileNotFoundError:
-        logging.error(f"Soubor s daty nebyl nalezen: {CSV_DATA_PATH}. Používám záložní data.")
-        numeric_items = ['SpO2', 'Srdeční frekvence', 'Krevní tlak', 'Dechová frekvence', 'Teplota', 'Bolest NRS']
-        text_items = ['Dušnost', 'Kyslíková terapie', 'Léky', 'Anamnéza', 'Fyzikální vyšetření']
-        df_numeric_state = pd.DataFrame({'Počáteční stav': np.nan}, index=numeric_items)
-        df_text_state = pd.DataFrame({'Počáteční stav': ''}, index=text_items)
+                logging.error(f"POZOR: Soubor {filename} pro kategorii {category} nebyl nalezen! Vytvářím prázdnou tabulku.")
+            
+            data_tables[category] = pd.DataFrame(columns=['Aktuální stav'])
+            data_tables[category].index.name = "Položka"
+        except Exception as e:
+            logging.error(f"Chyba při načítání {filename}: {e}")
 
 # Inicializace struktur
 initialize_data_structures()
@@ -239,25 +274,36 @@ initialize_data_structures()
 get_or_create_session_dir(force_new=False)
 
 
-# --- LLM PROMPTY ---
-numeric_items_str = ', '.join(f'"{item}"' for item in numeric_items)
-text_items_str = ', '.join(f'"{item}"' for item in text_items)
+# --- LLM PROMPTY (UPRAVENO PRO VŠECHNY POLOŽKY) ---
+# Vytvoříme seznam všech položek pro prompt
+items_list_str = ', '.join(f'"{item}"' for item in all_known_items)
 
 system_prompt = f"""
-Jsi expert na extrakci lékařských dat z mluveného slova. Tvým úkolem je z textu extrahovat medicínské parametry (vitální funkce), podané léky a nálezy.
-Ber v úvahu pouze textový vstup v češtině.
+Jsi expert na extrakci lékařských dat z mluveného slova v reálném čase.
+Tvým úkolem je naslouchat hlášením lékaře/záchranáře a strukturovat je do JSON formátu podle definovaných položek.
+Údaje si NEVYMYŠLEJ, pokud nejsou explicitně uvedeny v textu, ponech je prázdné.
+Pracuj pouze s textem v českém jazyce.
 
 Pravidla:
 1.  Výstup musí být VŽDY a POUZE platný JSON objekt.
 2.  JSON obsahuje klíč "polozky", což je slovník.
-3.  Klíče ve slovníku "polozky" musí být POUZE názvy z jednoho z těchto dvou seznamů:
-    - Číselné položky: [{numeric_items_str}]
-    - Textové položky: [{text_items_str}]
-4.  Normalizuj synonymum na oficiální název (např. "tep" -> "Srdeční frekvence", "saturace" -> "SpO2", "tlak" -> "Krevní tlak"). Dbej na velikost písmen.
+3.  Klíče ve slovníku "polozky" musí odpovídat názvům z následujícího seznamu (nebo jejich blízkým synonymům, které normalizuješ na tento seznam):
+    [{items_list_str}]
+4.  Normalizuj synonyma na oficiální názvy ze seznamu (např. "tep" -> "Srdeční frekvence", "saturace" -> "SpO2", "tlak" -> "Krevní tlak").
 5.  Hodnoty:
-    - Pro číselné položky extrahuj POUZE číslo (např. z "saturace 98 procent" extrahuj `98`). Pokud je tlak, vrať "systola/diastola" (např. "120/80").
-    - Pro textové položky extrahuj stručný a relevantní popis (např. z "pacient si stěžuje na dušnost při námaze" extrahuj `"při námaze"`).
+    - Čísla extrahuj jako čísla nebo formátovaný string (např. "120/80").
+    - Textové popisy extrahuj stručně a jasně.
 6.  Pokud text neobsahuje žádné relevantní informace, vrať prázdný slovník `{{"polozky": {{}}}}`.
+
+Příklady:
+Uživatel: "Pacient má saturaci 92 a tlak 130 na 80."
+Výstup: {{"polozky": {{"SpO2": "92", "Krevní tlak": "130/80"}}}}
+
+Uživatel: "Podávám 1 miligram adrenalinu intravenózně."
+Výstup: {{"polozky": {{"Adrenalin": "1 mg i.v."}}}}
+
+Uživatel: "Pacient je mírně dušný, bez alergie."
+Výstup: {{"polozky": {{"Dušnost": "Mírná", "Alergická anamnéza (AA)": "Neguje"}}}}
 """
 
 # --- INICIALIZACE GROQ KLIENTA ---
@@ -571,25 +617,22 @@ def get_data_from_groq(text: str) -> dict | None:
 
 def save_to_csv():
     """
-    UPRAVENO: Ukládá soubory bez časového razítka v názvu, aby se přepisovaly
-    a tvořily tak 'aktuální výsledný soubor' v dané session.
+    UPRAVENO: Ukládá soubory pro všech 6 kategorií.
     """
     try:
         session_dir = get_or_create_session_dir(force_new=False)
         
-        # Pevné názvy pro výsledné soubory
-        numeric_csv_path = os.path.join(session_dir, 'vysledny_stav_numeric.csv')
-        df_numeric_state.to_csv(numeric_csv_path)
-        
-        text_csv_path = os.path.join(session_dir, 'vysledny_stav_text.csv')
-        df_text_state.to_csv(text_csv_path)
-        
-        logging.info(f"Tabulky aktualizovány v: {session_dir}")
+        for category, df in data_tables.items():
+            safe_cat_name = category.replace(" ", "_")
+            csv_path = os.path.join(session_dir, f'vysledny_stav_{safe_cat_name}.csv')
+            df.to_csv(csv_path)
+            
+        logging.info(f"Všechny tabulky aktualizovány v: {session_dir}")
     except Exception as e:
         logging.error(f"Chyba při ukládání CSV: {e}")
 
 def process_with_llm(text: str):
-    global df_numeric_state, df_text_state
+    global data_tables, item_mapping
     
     get_or_create_session_dir(force_new=False)
     
@@ -604,34 +647,69 @@ def process_with_llm(text: str):
     if extracted_data and 'polozky' in extracted_data and extracted_data['polozky']:
         logging.info(f"LLM extrahoval data: {extracted_data}")
         timestamp = datetime.now().strftime('%H:%M:%S')
-
-        last_numeric_col = df_numeric_state.columns[-1]
-        last_text_col = df_text_state.columns[-1]
-        
-        df_numeric_state[timestamp] = df_numeric_state[last_numeric_col]
-        df_text_state[timestamp] = df_text_state[last_text_col]
         
         items = extracted_data['polozky']
-        for item_name, value in items.items():
-            found_item = next((i for i in numeric_items + text_items if i.lower() == item_name.lower()), None)
-            
-            if not found_item:
-                logging.warning(f"Položka '{item_name}' nenalezena.")
-                continue
+        updated_categories = set()
 
-            if found_item in numeric_items:
-                try:
-                    if "/" in str(value):
-                        df_numeric_state.loc[found_item, timestamp] = str(value)
-                    else:
-                        df_numeric_state.loc[found_item, timestamp] = float(value)
-                except (ValueError, TypeError):
-                    logging.warning(f"Nečíselná hodnota '{value}' pro '{found_item}'.")
-                    df_numeric_state.loc[found_item, timestamp] = str(value)
+        for item_name, value in items.items():
+            # Najdeme, do jaké kategorie položka patří
+            item_lower = item_name.lower()
             
-            elif found_item in text_items:
-                df_text_state.loc[found_item, timestamp] = str(value)
-        
+            # Pokus o přímou shodu nebo case-insensitive shodu
+            category = item_mapping.get(item_lower)
+            
+            # Pokud nenajdeme přesnou shodu, zkusíme najít původní klíč v mapování
+            if not category:
+                for known_item, cat in item_mapping.items():
+                    if known_item == item_lower:
+                        category = cat
+                        # Získáme oficiální název položky z dataframe
+                        real_item_name_list = list(data_tables[cat].index[data_tables[cat].index.str.lower() == known_item])
+                        if real_item_name_list:
+                            item_name = real_item_name_list[0] 
+                        break
+            
+            # --- ŘEŠENÍ: Pokud kategorie stále neexistuje, použijeme FALLBACK kategorii "Other" ---
+            if not category:
+                logging.warning(f"Položka '{item_name}' nebyla nalezena. Přidávám ji do 'Other'.")
+                # Fallback kategorie - nová 7. kategorie "Other"
+                category = "Other"
+                
+                # Ujistíme se, že tabulka existuje
+                if category in data_tables:
+                    df = data_tables[category]
+                    # Pokud položka v indexu opravdu není, přidáme ji
+                    if item_name not in df.index:
+                        # Vytvoříme nový řádek plný prázdných stringů
+                        new_row_data = {col: "" for col in df.columns}
+                        # Přidáme položku do DataFrame
+                        df.loc[item_name] = new_row_data
+                        
+                        # Aktualizujeme mapování, aby to příště fungovalo rovnou
+                        item_mapping[item_lower] = category
+                        all_known_items.append(item_name)
+                        logging.info(f"Položka '{item_name}' přidána do kategorie '{category}'.")
+            
+            # Zápis do tabulky
+            if category and category in data_tables:
+                df = data_tables[category]
+                
+                # Zápis pouze jednou (sparse data)
+                if timestamp not in df.columns:
+                    df[timestamp] = ""
+                
+                # Zápis hodnoty do konkrétního pole
+                if item_name in df.index:
+                    df.loc[item_name, timestamp] = str(value)
+                    updated_categories.add(category)
+                else:
+                    # Fallback pro různé velikosti písmen
+                    matching_index = df.index[df.index.str.lower() == item_lower]
+                    if not matching_index.empty:
+                        real_index = matching_index[0]
+                        df.loc[real_index, timestamp] = str(value)
+                        updated_categories.add(category)
+
         emit_table_update(extracted_data)
         save_to_csv() 
         
@@ -639,13 +717,19 @@ def process_with_llm(text: str):
         logging.info("Žádná relevantní data k aktualizaci.")
         socketio.emit('processing_error', {'message': 'Nerozuměl jsem, žádná data k aktualizaci.'})
 
+def generate_html_tables():
+    """Generuje HTML pro všech 7 tabulek."""
+    tables_html = {}
+    for category, df in data_tables.items():
+        # Vyplníme NaN prázdným řetězcem a vyrenderujeme
+        tables_html[category] = df.fillna('').to_html(classes="table table-striped table-hover table-sm", border=0)
+    return tables_html
+
 def emit_table_update(extracted_data=None):
-    html_numeric = df_numeric_state.fillna('').to_html(classes="table table-striped table-hover", border=0)
-    html_text = df_text_state.fillna('').to_html(classes="table table-striped table-hover", border=0)
+    tables_html = generate_html_tables()
     
     socketio.emit('table_update', {
-        'numeric_table': html_numeric,
-        'text_table': html_text,
+        'tables': tables_html,
         'extracted_data': extracted_data
     })
     logging.info("Tabulky odeslány klientovi.")
@@ -653,11 +737,9 @@ def emit_table_update(extracted_data=None):
 # --- FLASK ROUTES & SOCKETIO EVENTS ---
 @app.route('/')
 def index():
-    html_numeric = df_numeric_state.fillna('').to_html(classes="table table-striped table-hover", border=0)
-    html_text = df_text_state.fillna('').to_html(classes="table table-striped table-hover", border=0)
+    tables_html = generate_html_tables()
     return render_template('index.html', 
-                           numeric_table=html_numeric, 
-                           text_table=html_text, 
+                           tables=tables_html,
                            provider=AI_PROVIDER,
                            save_audio=SAVE_CONTINUOUS_AUDIO)
 
