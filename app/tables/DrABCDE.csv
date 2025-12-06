@@ -12,7 +12,7 @@ EtCO2;Koncentrace CO2 na konci výdechu (parametr kvality ventilace a oběhu). 1
 Barva kůže;Cyanóza (modrá = hypoxie), bledost (anémie/šok), ikterus (žlutá = játra), zarudnutí (CO, sepse). 12;Růžová, přiměřená pigmentaci.
 Centrální pulz (a. carotis);Hmatnost pulzu na krkavici (hodnotíme při bezvědomí/šoku). 13;Hmatný, plný.
 Periferní pulz (a. radialis);Hmatnost na zápěstí. Jeho přítomnost orientačně značí TKsyst > 80 mmHg. 14;Hmatný, symetrický na obou končetinách.
-Srdeční frekvence (SF);Počet tepů za minutu. Tachykardie vs. Bradykardie. 15;60–100 tepů/min.
+Srdeční frekvence;Počet tepů za minutu. Tachykardie vs. Bradykardie. 15;60–100 tepů/min.
 Pravidelnost pulzu;Rytmický vs. arytmický (fibrilace síní, extrasystoly). 16;Pravidelný rytmus.
 Krevní tlak;Měření manžetou. Hypotenze (šok) vs. Hypertenze (CMP, bolest). 17;100–140 / 60–90 mmHg (Ideál 120/80).
 Kapilární návrat;Doba zrůžovění nehtového lůžka po stlačení. Ukazatel periferní perfuze (šoku). 18;< 2 sekundy.

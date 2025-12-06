@@ -108,6 +108,42 @@
             70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
             100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
         }
+
+        /* === NOVÉ STYLY PRO VITALS DISPLAY === */
+        .vitals-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        .vitals-value {
+            font-size: 3.5rem;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        .vitals-label {
+            font-size: 3.5rem;
+            font-weight: 400;
+            margin-right: 10px;
+        }
+        /* Barvy podle obrázku */
+        .color-tf { color: #d50000; } /* Červená */
+        .color-tk { color: #d50000; } /* Červená */
+        .color-df { color: #007bff; } /* Modrá */
+        .color-spo2 { color: #007bff; } /* Modrá */
+        .color-crt { color: #000; }
+        .color-avpu { color: #000; }
+
+        .vitals-history {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            border-top: 2px solid #eee;
+            padding-top: 15px;
+        }
+        .history-item {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -228,6 +264,56 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-section-header text-secondary" data-bs-toggle="collapse" data-bs-target="#sectionVitals" aria-expanded="true">
+            <h4><i class="bi bi-heart-pulse-fill"></i> Životní funkce (Live)</h4>
+            <i class="bi bi-chevron-down chevron-icon"></i>
+        </div>
+
+        <div id="sectionVitals" class="collapse show">
+            <div class="vitals-panel">
+                <div class="row text-center mb-3">
+                    <div class="col-md-6 mb-3">
+                        <span class="vitals-label color-tf">TF:</span>
+                        <span class="vitals-value color-tf" id="val-TF">{{ current_vitals['TF'] }}</span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <span class="vitals-label color-tk">TK:</span>
+                        <span class="vitals-value color-tk" id="val-TK">{{ current_vitals['TK'] }}</span>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <span class="vitals-label color-df">DF:</span>
+                        <span class="vitals-value color-df" id="val-DF">{{ current_vitals['DF'] }}</span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <span class="vitals-label color-spo2">SpO2:</span>
+                        <span class="vitals-value color-spo2" id="val-SpO2">{{ current_vitals['SpO2'] }}</span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <span class="vitals-label color-crt">CRT:</span>
+                        <span class="vitals-value color-crt" id="val-CRT">{{ current_vitals['CRT'] }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <span class="vitals-label color-avpu">AVPU:</span>
+                        <span class="vitals-value color-avpu" id="val-AVPU">{{ current_vitals['AVPU'] }}</span>
+                    </div>
+                </div>
+
+                <div class="vitals-history">
+                    <h5 class="mb-3">Poslední hodnoty:</h5>
+                    <div id="vitals-history-list">
+                        {% for update in recent_updates %}
+                            <div class="history-item">{{ update }}</div>
+                        {% else %}
+                            <div class="text-muted">Zatím žádné záznamy.</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-2 text-muted small">...</div>
                 </div>
             </div>
         </div>
@@ -436,6 +522,30 @@
                 updateEl('table-SBAR', data.tables['SBAR']);
                 updateEl('table-Other', data.tables['Other']);
             }
+
+            // --- AKTUALIZACE VITALS DISPLAY ---
+            if(data.current_vitals) {
+                document.getElementById('val-TF').textContent = data.current_vitals['TF'];
+                document.getElementById('val-TK').textContent = data.current_vitals['TK'];
+                document.getElementById('val-DF').textContent = data.current_vitals['DF'];
+                document.getElementById('val-SpO2').textContent = data.current_vitals['SpO2'];
+                document.getElementById('val-CRT').textContent = data.current_vitals['CRT'];
+                document.getElementById('val-AVPU').textContent = data.current_vitals['AVPU'];
+            }
+
+            // --- AKTUALIZACE HISTORIE ---
+            if(data.recent_updates) {
+                const historyContainer = document.getElementById('vitals-history-list');
+                if (data.recent_updates.length > 0) {
+                    historyContainer.innerHTML = '';
+                    data.recent_updates.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'history-item';
+                        div.textContent = item;
+                        historyContainer.appendChild(div);
+                    });
+                }
+            }
             
             aiProcessingDiv.textContent = JSON.stringify(data.extracted_data, null, 2);
             processingDiv.style.display = 'none';
@@ -446,6 +556,15 @@
             transcriptionDiv.innerHTML = '<em class="text-muted">Vymazáno.</em>';
             aiProcessingDiv.textContent = "{}";
             statusDiv.textContent = "Resetováno";
+            
+            // Reset vitals UI
+            document.getElementById('val-TF').textContent = '--';
+            document.getElementById('val-TK').textContent = '--/--';
+            document.getElementById('val-DF').textContent = '--';
+            document.getElementById('val-SpO2').textContent = '--';
+            document.getElementById('val-CRT').textContent = '--';
+            document.getElementById('val-AVPU').textContent = '--';
+            document.getElementById('vitals-history-list').innerHTML = '<div class="text-muted">Zatím žádné záznamy.</div>';
         });
         
         socket.on('provider_changed', (data) => {

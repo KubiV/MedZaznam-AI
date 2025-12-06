@@ -86,6 +86,66 @@ data_tables = {}     # { "DrABCDE": DataFrame, "Medication": DataFrame, ... }
 item_mapping = {}    # { "Položka": "DrABCDE", ... } slouží k rychlému nalezení, do jaké tabulky položka patří
 all_known_items = [] # Seznam všech položek pro LLM prompt
 
+# --- NOVÉ GLOBÁLNÍ PROMĚNNÉ PRO DASHBOARD (TF, TK, atd.) ---
+
+# 1. KROK - SYNONYMA: Vše převedeme na název, který JE v CSV (Srdeční frekvence)
+ITEM_SYNONYMS = {
+    # Všechny varianty tepu -> "Srdeční frekvence" (aby to sedělo do DrABCDE)
+    "tepová frekvence": "Srdeční frekvence",
+    "tep": "Srdeční frekvence",
+    "puls": "Srdeční frekvence",
+    "sf": "Srdeční frekvence",
+    "tf": "Srdeční frekvence",
+    "srdeční frekvence (sf)": "Srdeční frekvence",
+    
+    # Tlak
+    "tlak": "Krevní tlak",
+    "tk": "Krevní tlak",
+    "systolický tlak": "Krevní tlak",
+    
+    # Saturace
+    "saturace": "SpO2",
+    "sat": "SpO2",
+    "spo2": "SpO2",
+    
+    # Dech
+    "dech": "Dechová frekvence",
+    "df": "Dechová frekvence",
+    
+    # Vědomí
+    "vědomí": "AVPU",
+    "gcs": "glasgow coma scale",
+    "glasgow coma scale": "gcs",
+    "avpu": "AVPU",
+    
+    # CRT
+    "kapilární návrat": "CRT",
+    "crt": "CRT"
+}
+
+# 2. KROK - MAPPING NA DISPLEJ: Oficiální název z CSV -> Zkratka na dashboardu
+VITALS_MAPPING = {
+    "srdeční frekvence": "TF", # Teď mapujeme "Srdeční frekvence" na "TF"
+    "krevní tlak": "TK",
+    "dechová frekvence": "DF",
+    "spo2": "SpO2",
+    "crt": "CRT",
+    "avpu": "AVPU"
+}
+
+# Výchozí stav dashboardu
+current_vitals = {
+    "TF": "--",
+    "TK": "--/--",
+    "DF": "--",
+    "SpO2": "--",
+    "CRT": "--",
+    "AVPU": "--"
+}
+
+# Historie posledních 5 změn: seznam slovníků {time, item, value}
+recent_updates = deque(maxlen=5)
+
 # --- SPRÁVA LOGOVÁNÍ A ADRESÁŘŮ ---
 
 logging.basicConfig(
@@ -632,7 +692,7 @@ def save_to_csv():
         logging.error(f"Chyba při ukládání CSV: {e}")
 
 def process_with_llm(text: str):
-    global data_tables, item_mapping
+    global data_tables, item_mapping, current_vitals, recent_updates
     
     get_or_create_session_dir(force_new=False)
     
@@ -652,10 +712,28 @@ def process_with_llm(text: str):
         updated_categories = set()
 
         for item_name, value in items.items():
-            # Najdeme, do jaké kategorie položka patří
             item_lower = item_name.lower()
-            
-            # Pokus o přímou shodu nebo case-insensitive shodu
+
+            # --- SYNONYM CHECK (SF -> Tepová frekvence) ---
+            # Pokud je název v synonymech, přepíšeme ho na oficiální název pro tabulky a vitals
+            if item_lower in ITEM_SYNONYMS:
+                original_name = item_name
+                item_name = ITEM_SYNONYMS[item_lower] # Přepis na "Tepová frekvence"
+                item_lower = item_name.lower() # Aktualizace lower case pro další logiku
+                logging.info(f"Synonymum nahrazeno: {original_name} -> {item_name}")
+
+            # --- HISTORIE: Zaznamenáme VŠECHNO ---
+            # Formát: čas - položka - hodnota
+            recent_updates.appendleft(f"{timestamp} - {item_name} - {value}")
+
+            # --- DASHBOARD UPDATE (Fixní hodnoty) ---
+            # Zjistíme, jestli (již normalizovaná) položka patří mezi vitální funkce
+            vital_key = VITALS_MAPPING.get(item_lower)
+            if vital_key:
+                current_vitals[vital_key] = str(value)
+
+            # --- LOGIKA TABULEK (DataFrame) ---
+            # Najdeme, do jaké kategorie položka patří
             category = item_mapping.get(item_lower)
             
             # Pokud nenajdeme přesnou shodu, zkusíme najít původní klíč v mapování
@@ -728,11 +806,16 @@ def generate_html_tables():
 def emit_table_update(extracted_data=None):
     tables_html = generate_html_tables()
     
+    # Převedeme recent_updates deque na list pro JSON serializaci
+    updates_list = list(recent_updates)
+    
     socketio.emit('table_update', {
         'tables': tables_html,
-        'extracted_data': extracted_data
+        'extracted_data': extracted_data,
+        'current_vitals': current_vitals,
+        'recent_updates': updates_list
     })
-    logging.info("Tabulky odeslány klientovi.")
+    logging.info("Tabulky a dashboard odeslány klientovi.")
 
 # --- FLASK ROUTES & SOCKETIO EVENTS ---
 @app.route('/')
@@ -741,7 +824,9 @@ def index():
     return render_template('index.html', 
                            tables=tables_html,
                            provider=AI_PROVIDER,
-                           save_audio=SAVE_CONTINUOUS_AUDIO)
+                           save_audio=SAVE_CONTINUOUS_AUDIO,
+                           current_vitals=current_vitals,
+                           recent_updates=list(recent_updates))
 
 @app.route('/process', methods=['POST'])
 def process_text():
@@ -791,11 +876,24 @@ def handle_set_device(data):
 
 @socketio.on('reset_session')
 def handle_reset_session():
+    global current_vitals, recent_updates
+    
     logging.info("Požadavek na reset session.")
     # Zde force_new=True vytvoří NOVOU složku
     new_dir = get_or_create_session_dir(force_new=True)
     
     initialize_data_structures()
+    
+    # Reset dashboardu
+    current_vitals = {
+        "TF": "--",
+        "TK": "--/--",
+        "DF": "--",
+        "SpO2": "--",
+        "CRT": "--",
+        "AVPU": "--"
+    }
+    recent_updates.clear()
     
     emit_table_update(extracted_data={})
     logging.info(f"Session resetována. Nová složka: {os.path.basename(new_dir)}")
