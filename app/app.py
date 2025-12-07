@@ -9,7 +9,7 @@ import threading
 import numpy as np
 import pyaudio
 from vosk import Model, KaldiRecognizer
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 from flask_socketio import SocketIO, emit
 from datetime import datetime
 from collections import deque
@@ -837,6 +837,17 @@ def process_text():
         logging.info(f"[MANUÁLNÍ VSTUP] {user_text}")
         threading.Thread(target=process_with_llm, args=(user_text,)).start()
     return redirect(url_for('index'))
+
+@app.route('/sw.js')
+def service_worker():
+    response = send_from_directory('static', 'sw.js')
+    # Zakážeme cacheování samotného souboru sw.js, aby se změny projevily hned
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('static', 'manifest.json')
 
 @socketio.on('set_ai_provider')
 def set_ai_provider(data):

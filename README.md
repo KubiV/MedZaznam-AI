@@ -58,7 +58,7 @@ mkdir mujprojekt && cd mujprojekt
 python3 -m venv venv
 
 # 3. Aktivuj
-source venv/bin/activate
+source venv312/bin/activate
 
 # 4. Instaluj balíčky
 pip install -r requirements.txt

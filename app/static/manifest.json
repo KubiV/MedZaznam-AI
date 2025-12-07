@@ -1,0 +1,23 @@
+{
+  "name": "Lékařský Hlasový Záznamník",
+  "short_name": "MedZáznam",
+  "icons": [
+    {
+      "src": "/static/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#0d6efd",
+  "background_color": "#f0f2f5",
+  "display": "standalone",
+  "start_url": "/",
+  "orientation": "portrait"
+}

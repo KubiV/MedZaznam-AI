@@ -3,7 +3,7 @@ import json
 import logging
 import pandas as pd
 from groq import Groq
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from datetime import datetime
 from collections import deque
 import zipfile
@@ -368,6 +368,17 @@ def reset_session():
     initialize_data_structures() 
     
     return jsonify({'status': 'ok'})
+
+@app.route('/sw.js')
+def service_worker():
+    response = send_from_directory('static', 'sw.js')
+    # Zakážeme cacheování samotného souboru sw.js, aby se změny projevily hned
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('static', 'manifest.json')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)
