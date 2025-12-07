@@ -109,7 +109,27 @@
             100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
         }
 
-        /* === NOVÉ STYLY PRO VITALS DISPLAY === */
+        /* === NOVÉ STYLY PRO AUDIO VIZUALIZÉR === */
+        .mic-visualizer {
+            background-color: #e9ecef;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .mic-level {
+            background-color: #0d6efd;
+            width: 0%;
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.08s linear;
+        }
+        /* Pokud je zvuk příliš nahlas, zčervená */
+        .mic-level.clipping { background-color: #dc3545; }
+
+
+        /* === VITALS DISPLAY === */
         .vitals-panel {
             background: white;
             border-radius: 12px;
@@ -117,33 +137,17 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             margin-bottom: 30px;
         }
-        .vitals-value {
-            font-size: 3.5rem;
-            font-weight: 500;
-            line-height: 1.2;
-        }
-        .vitals-label {
-            font-size: 3.5rem;
-            font-weight: 400;
-            margin-right: 10px;
-        }
-        /* Barvy podle obrázku */
-        .color-tf { color: #d50000; } /* Červená */
-        .color-tk { color: #d50000; } /* Červená */
-        .color-df { color: #007bff; } /* Modrá */
-        .color-spo2 { color: #007bff; } /* Modrá */
+        .vitals-value { font-size: 3.5rem; font-weight: 500; line-height: 1.2; }
+        .vitals-label { font-size: 3.5rem; font-weight: 400; margin-right: 10px; }
+        .color-tf { color: #d50000; }
+        .color-tk { color: #d50000; }
+        .color-df { color: #007bff; }
+        .color-spo2 { color: #007bff; }
         .color-crt { color: #000; }
         .color-avpu { color: #000; }
 
-        .vitals-history {
-            margin-top: 20px;
-            font-size: 1.2rem;
-            border-top: 2px solid #eee;
-            padding-top: 15px;
-        }
-        .history-item {
-            margin-bottom: 5px;
-        }
+        .vitals-history { margin-top: 20px; font-size: 1.2rem; border-top: 2px solid #eee; padding-top: 15px; }
+        .history-item { margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -202,6 +206,19 @@
                                 <button id="micButton" class="btn btn-primary btn-lg w-100 py-3 shadow-sm rounded-pill">
                                     <i class="bi bi-play-circle-fill me-2"></i> Spustit záznam
                                 </button>
+                                
+                                <div id="audioVisualizerContainer" style="display: none;" class="mt-3 text-start">
+                                    <div class="d-flex justify-content-between text-muted small mb-1">
+                                        <span><i class="bi bi-mic-fill"></i> Úroveň hluku</span>
+                                        <span id="volumeValue">0%</span>
+                                    </div>
+                                    <div class="mic-visualizer">
+                                        <div id="micLevelBar" class="mic-level"></div>
+                                    </div>
+                                    <p class="text-muted small mt-2 text-center mb-0">
+                                        Mluvte pro aktivaci záznamu. Ticho ukončí záznam.
+                                    </p>
+                                </div>
                                 <div class="d-flex justify-content-center align-items-center gap-2 mt-3">
                                     <div id="status" class="status-box mb-0">Připraven</div>
                                     <div id="processing" class="text-primary" style="display: none;">
@@ -462,6 +479,78 @@
         const micSelect = document.getElementById('micSelect');
         const resetBtn = document.getElementById('resetSessionBtn');
 
+        // === PROMĚNNÉ PRO VIZUALIZÉR ===
+        let audioContext = null;
+        let analyser = null;
+        let microphoneStream = null;
+        let visualizerAnimationId = null;
+
+        // === FUNKCE PRO VIZUALIZÉR ===
+        async function startVisualizer() {
+            try {
+                // Zobrazit UI vizualizéru
+                document.getElementById('audioVisualizerContainer').style.display = 'block';
+
+                // Získat přístup k mikrofonu (podle výběru v selectu)
+                const constraints = { 
+                    audio: { 
+                        deviceId: micSelect.value !== 'default' ? { exact: micSelect.value } : undefined 
+                    } 
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                microphoneStream = stream;
+
+                // Audio kontext
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                const microphone = audioContext.createMediaStreamSource(stream);
+                
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+                
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                const micLevelBar = document.getElementById('micLevelBar');
+                const volumeValue = document.getElementById('volumeValue');
+
+                // Smyčka vykreslování
+                function draw() {
+                    visualizerAnimationId = requestAnimationFrame(draw);
+                    analyser.getByteFrequencyData(dataArray);
+
+                    let sum = 0;
+                    for(let i = 0; i < bufferLength; i++) sum += dataArray[i];
+                    let average = sum / bufferLength;
+
+                    // Převod na procenta (citlivost)
+                    let volumePercent = Math.min(100, Math.round((average / 100) * 100));
+
+                    micLevelBar.style.width = volumePercent + '%';
+                    volumeValue.innerText = volumePercent + '%';
+                    
+                    if (volumePercent > 90) micLevelBar.classList.add('clipping');
+                    else micLevelBar.classList.remove('clipping');
+                }
+                draw();
+
+            } catch (err) {
+                console.error("Chyba vizualizace:", err);
+            }
+        }
+
+        function stopVisualizer() {
+            if (visualizerAnimationId) cancelAnimationFrame(visualizerAnimationId);
+            document.getElementById('audioVisualizerContainer').style.display = 'none';
+            
+            if (audioContext && audioContext.state !== 'closed') audioContext.close();
+            if (microphoneStream) microphoneStream.getTracks().forEach(track => track.stop());
+
+            document.getElementById('micLevelBar').style.width = '0%';
+            document.getElementById('volumeValue').innerText = '0%';
+        }
+
+
         // Socket.IO
         socket.on('connect', () => {
             console.log('Socket.IO připojeno');
@@ -488,6 +577,9 @@
             statusDiv.textContent = 'Naslouchám...';
             providerSwitch.disabled = true;
             audioSaveSwitch.disabled = true;
+            
+            // SPUSTIT VIZUALIZÉR
+            startVisualizer();
         });
 
         socket.on('recording_stopped', () => {
@@ -497,6 +589,9 @@
             processingDiv.style.display = 'none';
             providerSwitch.disabled = false;
             audioSaveSwitch.disabled = false;
+
+            // ZASTAVIT VIZUALIZÉR
+            stopVisualizer();
         });
         
         socket.on('speech_start', () => statusDiv.textContent = 'Detekuji hlas...');
@@ -523,7 +618,6 @@
                 updateEl('table-Other', data.tables['Other']);
             }
 
-            // --- AKTUALIZACE VITALS DISPLAY ---
             if(data.current_vitals) {
                 document.getElementById('val-TF').textContent = data.current_vitals['TF'];
                 document.getElementById('val-TK').textContent = data.current_vitals['TK'];
@@ -533,7 +627,6 @@
                 document.getElementById('val-AVPU').textContent = data.current_vitals['AVPU'];
             }
 
-            // --- AKTUALIZACE HISTORIE ---
             if(data.recent_updates) {
                 const historyContainer = document.getElementById('vitals-history-list');
                 if (data.recent_updates.length > 0) {
@@ -557,7 +650,6 @@
             aiProcessingDiv.textContent = "{}";
             statusDiv.textContent = "Resetováno";
             
-            // Reset vitals UI
             document.getElementById('val-TF').textContent = '--';
             document.getElementById('val-TK').textContent = '--/--';
             document.getElementById('val-DF').textContent = '--';
