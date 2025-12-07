@@ -92,6 +92,7 @@ all_known_items = [] # Seznam všech položek pro LLM prompt
 ITEM_SYNONYMS = {
     # Všechny varianty tepu -> "Srdeční frekvence" (aby to sedělo do DrABCDE)
     "tepová frekvence": "Srdeční frekvence",
+    "typová frekvence": "Srdeční frekvence",
     "tep": "Srdeční frekvence",
     "puls": "Srdeční frekvence",
     "sf": "Srdeční frekvence",

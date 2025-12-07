@@ -1,0 +1,12 @@
+Název položky;Popis / Poznámky (na co se ptáme);Referenční meze / Norma (Fyziologický stav)
+Nynější onemocnění (NO);Důvod příchodu, vedoucí příznaky, kdy potíže začaly, charakter bolesti, intenzita, propagace. Rozlišení akutní vs. chronické.;Pacient bez subjektivních obtíží.
+Rodinná anamnéza (RA);Výskyt chorob u pokrevních příbuzných (rodiče, sourozenci, děti). Cíleně: hypertenze, infarkt, nádory, diabetes, cévní příhody.;Bez genetické zátěže, rodiče a sourozenci zdrávi.
+Osobní anamnéza (OA);Chronologický přehled všech prodělaných nemocí, operací a úrazů. Ptáme se na hypertenzi, DM, IM, CMP.;Pacient se s ničím neléčí, operace neprodělal.
+Pracovní anamnéza (PA);Povolání (i minulé), rizikové faktory: stres, prach, chemikálie, záření, fyzická zátěž.;Práce bez rizikových faktorů.
+Sociální anamnéza (SA);Bydlení, soběstačnost, rodinné zázemí, stresové faktory (rozvod, úmrtí), psychosomatika.;Stabilní zázemí, soběstačný, bez výrazného stresu.
+Alergická anamnéza (AA);Léky, potraviny, hmyz, jód, náplasti. Typ reakce: vyrážka, otok, dušnost, anafylaxe.;Neguje alergie.
+Farmakologická (FA);Přesný seznam léků (název, síla, dávkování), forma užívání, compliance.;Neužívá žádné léky.
+Abusus;Kouření (počet cigaret/den, doba), alkohol (druh, množství), drogy, káva.;Nekuřák, alkohol příležitostně/abstinent, drogy neguje.
+Gynekologická (GA);Menstruace (pravidelnost), počet porodů/potratů, antikoncepce, menopauza;Menses pravidelné, bez gynekologických obtíží.
+Epidemiologická (EA);Cestování do zahraničí, kontakt s infekcí, očkování, průjmy/teploty v okolí.;Bez rizikového kontaktu či cestování.
+Hodnotová;Postoj k léčbě, DNR (Do Not Resuscitate), životní priority, spirituální potřeby.;Orientován na záchranu života / Specifická přání (Living Will).

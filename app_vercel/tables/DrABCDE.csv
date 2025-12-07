@@ -1,0 +1,36 @@
+Položka (Vyšetření);Popis / Poznámka (Co a jak hodnotíme);Referenční hodnoty / Norma (Fyziologický nález)
+Nebezpečí;Vyhodnocení bezpečnosti scény pro zachránce i pacienta (provoz, agresivita, plyn, elektřina). 2;Scéna je bezpečná.
+Mechanismus úrazu;Kinematika úrazu (pád z výšky, náraz v rychlosti) – napovídá o skrytých poraněních. 3;Nízkoenergetické násilí / Bez úrazu.
+Krvácení (masivní);Rychlá kontrola viditelného masivního krvácení (tepenné, z velkých žil). Priorita před dýchacími cestami! 4;Bez aktivního zevního krvácení.
+Průchodnost dýchacích cest;Kontrola obstrukce: zapadlý jazyk, cizí těleso, zvratky, krev, otok. 5;Dýchací cesty volné (pacient mluví).
+Dechová frekvence;Počet dechů za minutu. Tachypnoe (rychlé) vs. Bradypnoe (pomalé). 6;Dospělý: 12–20 dechů/min.
+Symetrie dýchání;Zvedá se hrudník stejně? (Podezření na pneumotorax, hemotorax, atelektázu). 7;Symetrické dýchací pohyby.
+Hloubka dýchání;Hodnocení objemu: mělké (bolest, útlum) vs. hluboké (Kussmaulovo – acidóza). 8;Přiměřená hloubka.
+Poslech – plíce;Auskultace ve 4 kvadrantech. Hledáme: chrůpky, pískoty, vrzoty, ticho (nevzdušnost). 9;Dýchání čisté, sklípkové, bez vedlejších fenoménů.
+SpO2;Procento hemoglobinu nasyceného kyslíkem (pulsní oxymetrie). 10;≥ 95 % (u CHOPN 88–92 %).
+EtCO2;Koncentrace CO2 na konci výdechu (parametr kvality ventilace a oběhu). 11;35–45 mmHg (4,6–6,0 kPa).
+Barva kůže;Cyanóza (modrá = hypoxie), bledost (anémie/šok), ikterus (žlutá = játra), zarudnutí (CO, sepse). 12;Růžová, přiměřená pigmentaci.
+Centrální pulz (a. carotis);Hmatnost pulzu na krkavici (hodnotíme při bezvědomí/šoku). 13;Hmatný, plný.
+Periferní pulz (a. radialis);Hmatnost na zápěstí. Jeho přítomnost orientačně značí TKsyst > 80 mmHg. 14;Hmatný, symetrický na obou končetinách.
+Srdeční frekvence;Počet tepů za minutu. Tachykardie vs. Bradykardie. 15;60–100 tepů/min.
+Pravidelnost pulzu;Rytmický vs. arytmický (fibrilace síní, extrasystoly). 16;Pravidelný rytmus.
+Krevní tlak;Měření manžetou. Hypotenze (šok) vs. Hypertenze (CMP, bolest). 17;100–140 / 60–90 mmHg (Ideál 120/80).
+Kapilární návrat;Doba zrůžovění nehtového lůžka po stlačení. Ukazatel periferní perfuze (šoku). 18;< 2 sekundy.
+Poslech – srdce;Srdeční ozvy (ozvy, šelesty, třecí šelesty). 19;2 ozvy, ohraničené, bez šelestů.
+EKG;Záznam elektrické aktivity (křivka). Hodnotíme rytmus, ischemii (ST úseky). 20;Sinusový rytmus, bez akutních změn.
+Hydratace;Stav sliznic (suché/vlhké), kožní turgor (návrat řasy), propadlé oči. 21;Jazyk vlhký, kožní řasa se ihned vrací.
+AVPU;Rychlé hodnocení vědomí: Alert (bdělý) - Voice (reaguje na hlas) - Pain (na bolest) - Unresponsive. 22;A (Alert) - Při vědomí.
+GCS (Glasgow Coma Scale);Detailní skóre: Otevření očí (1-4) + Slovní odpověď (1-5) + Motorická odpověď (1-6). 23;15 bodů (Plné vědomí).
+Kvalita vědomí (Orientace);Orientace vlastní osobou, místem a časem (popř. situací). 24;Plně orientován (Osoba, Místo, Čas).
+Zornice (Velikost/Symetrie);Izo/Anizokorie (rozdílné), Miotické (špendlík - opiáty), Mydriatické (široké). 25;Izokorické (stejně velké), střední šíře (2–5 mm).
+Fotoreakce;Reakce na osvit: Přímá (osvícené oko) a Nepřímá (druhé oko). 26;Reakce výbavná (zúžení) oboustranně.
+BEFAST;Screening cévní mozkové příhody: Balance, Eyes, Face (pokles koutku), Arms (pokles končetiny), Speech, Time. 27;Negativní (bez příznaků).
+Glykémie;Hladina cukru v krvi (kapilární odběr). Důležité u poruch vědomí! 28;3,5–5,5 mmol/l (nalačno), náhodná < 11 mmol/l.
+Meningeální příznaky;Známky dráždění plen mozkových (opozice šíje, Brudzinski, Kernig). 29;Šíje volná (hlava jde volně předklonit).
+Hybnost;Hrubá motorika končetin, svalová síla, symetrie pohybů. 30;Hybnost symetrická, síla normální.
+Tělesná teplota (TT);Měření teploty (axilární/v uchu). Hypotermie vs. Febrilie. 31;36,0–37,5 °C.
+Bolest (VAS/NRS);Subjektivní škála bolesti 0 (bez bolesti) až 10 (nesnesitelná). 32;0 (Bez bolesti).
+Jazyk;Kontrola plazení (uchyluje ke straně u CMP?), povlak, pokousání. 33;Plazí středem, bez povlaku/poranění.
+Váha;Hmotnost pacienta (pro dávkování léků). 34;Přiměřená (BMI 18,5–24,9).
+Výška;Tělesná výška. 35;–
+BMI;Body Mass Index (Váha / Výška²). Riziko metabolických komplikací. 36;18,5–24,9 (Normální váha).

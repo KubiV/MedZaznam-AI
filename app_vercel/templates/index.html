@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Záznamník (Live Vercel)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { padding: 20px; background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.5s ease; }
+        .container-fluid { max-width: 1600px; }
+        
+        /* === UNIVERZÁLNÍ KARTA (WIDGET) === */
+        .widget-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+            border: none;
+            margin-bottom: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-top: 4px solid #ccc;
+        }
+
+        .widget-header {
+            padding: 12px 20px;
+            background: #fff;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            transition: background-color 0.2s;
+        }
+        .widget-header:hover { background-color: #f8f9fa; }
+        .widget-header h5 { margin: 0; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .widget-body { padding: 20px; flex-grow: 1; }
+        
+        /* Animace šipky */
+        .chevron-icon { transition: transform 0.3s ease; color: #adb5bd; }
+        [aria-expanded="true"] .chevron-icon { transform: rotate(0deg); }
+        [aria-expanded="false"] .chevron-icon { transform: rotate(-90deg); }
+
+        /* === HLAVNÍ SEKCE === */
+        .main-section-header {
+            cursor: pointer;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+            margin-top: 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: color 0.2s;
+        }
+        .main-section-header:hover { color: #0d6efd !important; border-bottom-color: #0d6efd; }
+        .main-section-header h4 { margin: 0; font-weight: 600; }
+
+        /* === SPECIFICKÉ BARVY KARET === */
+        .card-Voice { border-top-color: #0d6efd; } .card-Voice .widget-header h5 { color: #0d6efd; }
+        .card-Transcript { border-top-color: #6610f2; } .card-Transcript .widget-header h5 { color: #6610f2; }
+        .card-DrABCDE { border-top-color: #dc3545; } .card-DrABCDE .widget-header h5 { color: #dc3545; }
+        .card-Medication { border-top-color: #198754; } .card-Medication .widget-header h5 { color: #198754; }
+        .card-Interventions { border-top-color: #0d6efd; } .card-Interventions .widget-header h5 { color: #0d6efd; }
+        .card-Physical { border-top-color: #ffc107; } .card-Physical .widget-header h5 { color: #d39e00; }
+        .card-History { border-top-color: #6c757d; } .card-History .widget-header h5 { color: #6c757d; }
+        .card-SBAR { border-top-color: #0dcaf0; } .card-SBAR .widget-header h5 { color: #0aa2c0; }
+        .card-Other { border-top-color: #20c997; } .card-Other .widget-header h5 { color: #20c997; }
+
+        /* === PRVKY UVNITŘ === */
+        .transcription-box { padding: 10px; border: 1px solid #dee2e6; border-radius: 6px; background-color: #f8f9fa; min-height: 80px; max-height: 250px; overflow-y: auto; }
+        .log-box { font-family: monospace; font-size: 0.8rem; max-height: 150px; overflow-y: auto; background: #fff; padding: 10px; border: 1px solid #dee2e6; border-radius: 6px; }
+        .table-responsive { max-height: 400px; overflow-y: auto; scrollbar-width: thin; }
+
+        /* === VITALS DISPLAY === */
+        .vitals-panel { background: white; border-radius: 12px; padding: 20px 40px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 10px; }
+        .vitals-value { font-size: 3rem; font-weight: 500; line-height: 1.2; }
+        .vitals-label { font-size: 1rem; color: #666; text-transform: uppercase; margin-bottom: 5px; }
+        .color-tf { color: #d50000; } 
+        .color-tk { color: #d50000; } 
+        .color-df { color: #007bff; } 
+        .color-spo2 { color: #007bff; } 
+
+        /* === AUDIO VIZUALIZACE === */
+        .mic-visualizer { height: 8px; background-color: #e9ecef; border-radius: 4px; overflow: hidden; margin-top: 15px; }
+        .mic-level { height: 100%; width: 0%; background-color: #0d6efd; transition: width 0.1s; }
+        .status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; float: right; }
+        .status-idle { background: #e9ecef; color: #666; }
+        .status-listening { background: #cff4fc; color: #055160; animation: pulse 2s infinite; }
+        .status-recording { background: #f8d7da; color: #842029; animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(13, 202, 240, 0); } 100% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0); } }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4 pt-2">
+            <h2 class="mb-0"><i class="bi bi-activity text-danger"></i> Lékařský Hlasový Záznamník <small class="text-muted fs-6">(Vercel)</small></h2>
+            <div class="d-flex gap-2">
+                 <button onclick="resetSession()" class="btn btn-outline-danger btn-sm border-0 fw-bold"><i class="bi bi-trash"></i> Reset</button>
+                 <a href="/download_zip" class="btn btn-success btn-sm fw-bold"><i class="bi bi-download"></i> Stáhnout data</a>
+            </div>
+        </div>
+
+        <div class="main-section-header text-secondary" data-bs-toggle="collapse" data-bs-target="#sectionVoice" aria-expanded="true">
+            <h4><i class="bi bi-mic"></i> Hlasový vstup a monitoring</h4>
+            <i class="bi bi-chevron-down chevron-icon"></i>
+        </div>
+
+        <div id="sectionVoice" class="collapse show">
+            <div class="row g-4 mb-4">
+                <div class="col-md-5">
+                    <div class="widget-card card-Voice h-100">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseVoice" aria-expanded="true">
+                            <h5><i class="bi bi-mic-fill"></i> Hlasové ovládání <span id="statusBadge" class="status-badge status-idle ms-2">Neaktivní</span></h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseVoice" class="collapse show">
+                            <div class="widget-body text-center">
+                                <button id="toggleAutoBtn" class="btn btn-primary btn-lg w-100 py-3 shadow-sm rounded-pill mb-3">
+                                    <i class="bi bi-power"></i> Zapnout Auto Mode
+                                </button>
+                                <div class="mic-visualizer">
+                                    <div id="micLevelBar" class="mic-level"></div>
+                                </div>
+                                <p class="text-muted small mt-2 mb-0">Detekce ticha (1.5s) automaticky odešle záznam.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="widget-card card-Transcript h-100">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseTrans" aria-expanded="true">
+                            <h5><i class="bi bi-chat-left-text-fill"></i> Přepis a Historie</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapseTrans" class="collapse show">
+                            <div class="widget-body">
+                                <div class="row h-100">
+                                    <div class="col-6 d-flex flex-column">
+                                        <small class="text-muted mb-1">Poslední přepis:</small>
+                                        <div id="lastTranscription" class="transcription-box flex-grow-1">
+                                            <em class="text-muted">Zde se objeví text...</em>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 d-flex flex-column">
+                                        <small class="text-muted mb-1">Log změn:</small>
+                                        <div id="logList" class="log-box flex-grow-1"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-section-header text-secondary" data-bs-toggle="collapse" data-bs-target="#sectionVitals" aria-expanded="true">
+            <h4><i class="bi bi-heart-pulse-fill"></i> Životní funkce</h4>
+            <i class="bi bi-chevron-down chevron-icon"></i>
+        </div>
+
+        <div id="sectionVitals" class="collapse show">
+            <div class="vitals-panel">
+                <div class="row text-center">
+                    <div class="col-md-2 col-4 mb-2">
+                        <div class="vitals-label">TF</div>
+                        <div class="vitals-value color-tf" id="val-TF">{{ current_vitals['TF'] }}</div>
+                    </div>
+                    <div class="col-md-2 col-4 mb-2">
+                        <div class="vitals-label">TK</div>
+                        <div class="vitals-value color-tk" id="val-TK">{{ current_vitals['TK'] }}</div>
+                    </div>
+                    <div class="col-md-2 col-4 mb-2">
+                        <div class="vitals-label">SpO2</div>
+                        <div class="vitals-value color-spo2" id="val-SpO2">{{ current_vitals['SpO2'] }}</div>
+                    </div>
+                    <div class="col-md-2 col-4 mb-2">
+                        <div class="vitals-label">DF</div>
+                        <div class="vitals-value color-df" id="val-DF">{{ current_vitals['DF'] }}</div>
+                    </div>
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="vitals-label">CRT</div>
+                        <div class="vitals-value" id="val-CRT">{{ current_vitals['CRT'] }}</div>
+                    </div>
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="vitals-label">AVPU</div>
+                        <div class="vitals-value" id="val-AVPU">{{ current_vitals['AVPU'] }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-section-header text-secondary" data-bs-toggle="collapse" data-bs-target="#sectionTables" aria-expanded="true">
+            <h4><i class="bi bi-clipboard2-pulse"></i> Strukturovaný stav pacienta</h4>
+            <i class="bi bi-chevron-down chevron-icon"></i>
+        </div>
+        
+        <div id="sectionTables" class="collapse show">
+            <div class="row g-4 pb-5" id="tablesContainer">
+                {% for category, html in tables.items() %}
+                {% set safe_cat = category.split(' ')[0] %}
+                <div class="col-xl-4 col-md-6">
+                    <div class="widget-card card-{{ safe_cat }}">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapse{{ safe_cat }}" aria-expanded="true">
+                            <h5>{{ category }}</h5>
+                            <i class="bi bi-chevron-down chevron-icon"></i>
+                        </div>
+                        <div id="collapse{{ safe_cat }}" class="collapse show">
+                            <div class="widget-body p-0">
+                                <div class="table-responsive p-3">
+                                    {{ html|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- KONFIGURACE AUTO MODE ---
+        const CONFIG = {
+            silenceThreshold: 15,    
+            silenceDuration: 1500,   
+            minSpeechDuration: 500,  
+        };
+
+        let isAutoMode = false;
+        let audioContext, analyser, microphone, mediaRecorder;
+        let audioChunks = [];
+        let silenceStart = null;
+        let isRecording = false;
+        let speechStartTime = null;
+        let animationFrame;
+
+        const toggleBtn = document.getElementById('toggleAutoBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const levelBar = document.getElementById('micLevelBar');
+        const transDiv = document.getElementById('lastTranscription');
+        const logDiv = document.getElementById('logList');
+
+        toggleBtn.addEventListener('click', async () => {
+            if (!isAutoMode) {
+                await startAutoMode();
+            } else {
+                stopAutoMode();
+            }
+        });
+
+        async function startAutoMode() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstop = sendDataToServer;
+
+                isAutoMode = true;
+                updateStatus('listening');
+                toggleBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Vypnout Auto Mode';
+                toggleBtn.classList.replace('btn-primary', 'btn-danger');
+                
+                detectSoundLoop();
+            } catch (err) {
+                alert("Chyba mikrofonu: " + err);
+            }
+        }
+
+        function stopAutoMode() {
+            isAutoMode = false;
+            cancelAnimationFrame(animationFrame);
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            if (audioContext) audioContext.close();
+            
+            updateStatus('idle');
+            toggleBtn.innerHTML = '<i class="bi bi-power"></i> Zapnout Auto Mode';
+            toggleBtn.classList.replace('btn-danger', 'btn-primary');
+            levelBar.style.width = '0%';
+        }
+
+        function detectSoundLoop() {
+            if (!isAutoMode) return;
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+            
+            let sum = 0;
+            for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
+            const volume = Math.round((sum / dataArray.length / 255) * 300);
+
+            levelBar.style.width = Math.min(volume, 100) + '%';
+            levelBar.style.backgroundColor = volume > CONFIG.silenceThreshold ? '#dc3545' : '#0d6efd';
+
+            const now = Date.now();
+            if (volume > CONFIG.silenceThreshold) {
+                silenceStart = null;
+                if (!isRecording) {
+                    isRecording = true;
+                    speechStartTime = now;
+                    audioChunks = [];
+                    mediaRecorder.start();
+                    updateStatus('recording');
+                }
+            } else {
+                if (isRecording) {
+                    if (!silenceStart) silenceStart = now;
+                    if (now - silenceStart > CONFIG.silenceDuration) {
+                        if (now - CONFIG.silenceDuration - speechStartTime > CONFIG.minSpeechDuration) {
+                            mediaRecorder.stop();
+                            updateStatus('processing');
+                        } else {
+                            mediaRecorder.stop();
+                            updateStatus('listening');
+                        }
+                        isRecording = false;
+                        silenceStart = null;
+                    }
+                }
+            }
+            animationFrame = requestAnimationFrame(detectSoundLoop);
+        }
+
+        async function sendDataToServer() {
+            if (audioChunks.length === 0) {
+                if(isAutoMode) updateStatus('listening');
+                return;
+            }
+            
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            audioChunks = [];
+            const formData = new FormData();
+            formData.append('audio_file', audioBlob);
+
+            try {
+                const res = await fetch('/api/process_audio', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.status === 'success') updateUI(data);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if(isAutoMode) updateStatus('listening');
+            }
+        }
+
+        function updateStatus(state) {
+            statusBadge.className = 'status-badge ms-2';
+            if (state === 'idle') {
+                statusBadge.textContent = 'Neaktivní';
+                statusBadge.classList.add('status-idle');
+            } else if (state === 'listening') {
+                statusBadge.textContent = 'Naslouchám...';
+                statusBadge.classList.add('status-listening');
+            } else if (state === 'recording') {
+                statusBadge.textContent = 'Nahrávám';
+                statusBadge.classList.add('status-recording');
+            } else if (state === 'processing') {
+                statusBadge.textContent = 'Zpracovávám...';
+                statusBadge.classList.add('bg-warning', 'text-dark');
+            }
+        }
+
+        function updateUI(data) {
+            transDiv.textContent = data.transcription;
+            
+            // Vitals
+            const v = data.current_vitals;
+            if(v) {
+                ['TF','TK','SpO2','DF','CRT','AVPU'].forEach(k => {
+                    document.getElementById(`val-${k}`).textContent = v[k];
+                });
+            }
+
+            // Tables update (replace HTML inside specific cards)
+            if (data.tables) {
+                for (const [key, html] of Object.entries(data.tables)) {
+                    const safeKey = key.split(' ')[0];
+                    const container = document.querySelector(`.card-${safeKey} .table-responsive`);
+                    if (container) container.innerHTML = html;
+                }
+            }
+
+            // Logs
+            if (data.recent_updates) {
+                logDiv.innerHTML = data.recent_updates.map(u => `<div>${u}</div>`).join('');
+            }
+        }
+
+        async function resetSession() {
+            if(confirm("Smazat vše?")) {
+                await fetch('/reset', {method: 'POST'});
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
