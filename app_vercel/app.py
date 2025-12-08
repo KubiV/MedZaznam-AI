@@ -8,19 +8,32 @@ from datetime import datetime
 from collections import deque
 import zipfile
 import io
+import google.generativeai as genai
+
+# --- PŘEPÍNAČ MODELŮ ---
+# Možnosti: "GEMINI" (Google) nebo "GROQ" (Llama)
+LLM_PROVIDER = "GEMINI" 
 
 # --- NASTAVENÍ CEST ---
 BASE_DIR = "/tmp"  # Writable adresář na Vercelu (zde se ukládá stav session)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Kořen projektu (zde jsou zdrojové kódy)
 TABLES_SOURCE_DIR = os.path.join(PROJECT_DIR, 'tables') # Kde máš nahrané své zdrojové CSV (read-only)
 
-# API Klient
+# API Klient - GROQ (Stále používáme pro rychlou transkripci Whisper)
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# Modely (stejné jako v lokálním kódu)
+# API Klient - GOOGLE GEMINI
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+
+# Modely Groq (pro případ přepnutí zpět)
 GROQ_MODEL_NAME = "llama-3.1-8b-instant"
 GROQ_TEMPERATURE = 0.2
 GROQ_TRANSCRIPTION_MODEL = "whisper-large-v3-turbo"
+
+# Modely Gemini
+GEMINI_MODEL_NAME = "gemini-2.5-flash" # Rychlý model, ideální pro real-time
 
 # Kategorie - definice souborů
 CATEGORY_FILES = {
@@ -221,7 +234,8 @@ def process_audio():
     file = request.files['audio_file']
     
     try:
-        # 1. Transkripce
+        # 1. Transkripce (WHISPER - Groq)
+        # Ponecháváme Groq Whisper, protože je extrémně rychlý pro STT
         file.filename = "rec.wav"
         transcription = groq_client.audio.transcriptions.create(
             model=GROQ_TRANSCRIPTION_MODEL,
@@ -235,14 +249,34 @@ def process_audio():
         if not text or len(text) < 2:
             return jsonify({'transcription': '', 'extracted_data': {}, 'status': 'no_speech'})
 
-        # 2. Extrakce dat pomocí LLM
-        chat_completion = groq_client.chat.completions.create(
-            messages=[{'role': 'system', 'content': get_system_prompt()}, {'role': 'user', 'content': text}],
-            model=GROQ_MODEL_NAME,
-            temperature=GROQ_TEMPERATURE,
-            response_format={"type": "json_object"}
-        )
-        extracted_data = json.loads(chat_completion.choices[0].message.content)
+        # 2. Extrakce dat (PŘEPÍNAČ: GEMINI vs GROQ)
+        extracted_data = {}
+        
+        if LLM_PROVIDER == "GEMINI":
+            logging.info(f"Zpracovávám pomocí Google Gemini ({GEMINI_MODEL_NAME})")
+            
+            # Inicializace modelu se systémovým promptem
+            model = genai.GenerativeModel(
+                model_name=GEMINI_MODEL_NAME,
+                system_instruction=get_system_prompt()
+            )
+            
+            # Generování s vynucením JSON formátu
+            response = model.generate_content(
+                text,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            extracted_data = json.loads(response.text)
+            
+        else:
+            logging.info(f"Zpracovávám pomocí Groq Llama ({GROQ_MODEL_NAME})")
+            chat_completion = groq_client.chat.completions.create(
+                messages=[{'role': 'system', 'content': get_system_prompt()}, {'role': 'user', 'content': text}],
+                model=GROQ_MODEL_NAME,
+                temperature=GROQ_TEMPERATURE,
+                response_format={"type": "json_object"}
+            )
+            extracted_data = json.loads(chat_completion.choices[0].message.content)
         
         # 3. Zpracování dat (Logic from Local Code)
         process_extracted_data(extracted_data)

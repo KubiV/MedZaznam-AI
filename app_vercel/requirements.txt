@@ -4,3 +4,4 @@ pandas
 python-dotenv
 numpy
 gunicorn
+google-generativeai
