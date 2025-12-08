@@ -14,7 +14,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
     <link rel="manifest" href="/static/site.webmanifest" />
 
-    <title>AI Záznamník (Live Vercel)</title>
+    <title>AI Záznamník (Multi-Model)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -98,9 +98,31 @@
         @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(13, 202, 240, 0); } 100% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0); } }
         
-        /* Model Switch Styles */
-        .model-switch-container { background: #fff; padding: 8px 15px; border-radius: 20px; border: 1px solid #dee2e6; display: flex; align-items: center; gap: 10px; }
-        .form-switch .form-check-input { width: 2.5em; height: 1.25em; cursor: pointer; }
+        /* Model Selection Styles */
+        .settings-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: #fff;
+            padding: 10px 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #dee2e6;
+        }
+        .model-select-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .model-select-group select {
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-size: 0.9rem;
+            max-width: 220px;
+            cursor: pointer;
+        }
+        .model-label { font-size: 0.8rem; font-weight: 700; color: #6c757d; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -109,13 +131,28 @@
             <h2 class="mb-0"><i class="bi bi-activity text-danger"></i> Lékařský Hlasový Záznamník <small class="text-muted fs-6">(Vercel)</small></h2>
             
             <div class="d-flex align-items-center gap-3">
-                <div class="model-switch-container shadow-sm">
-                    <span class="text-muted small fw-bold"><i class="bi bi-cpu"></i> LLM:</span>
-                    <div class="form-check form-switch m-0">
-                        <input class="form-check-input" type="checkbox" id="modelToggle" {% if current_provider == 'GEMINI' %}checked{% endif %}>
-                        <label class="form-check-label fw-semibold small" for="modelToggle" id="modelLabel">
-                            {% if current_provider == 'GEMINI' %}Google Gemini{% else %}Llama (Groq){% endif %}
-                        </label>
+                
+                <div class="settings-bar">
+                    <div class="model-select-group">
+                        <span class="model-label"><i class="bi bi-mic"></i> STT:</span>
+                        <select id="sttSelect" class="form-select form-select-sm" onchange="updateSettings()">
+                            {% for model in available_models['stt'] %}
+                                <option value="{{ model }}" {% if current_settings['stt_model'] == model %}selected{% endif %}>
+                                    {{ model }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="vr"></div>
+                    <div class="model-select-group">
+                        <span class="model-label"><i class="bi bi-cpu"></i> LLM:</span>
+                        <select id="llmSelect" class="form-select form-select-sm" onchange="updateSettings()">
+                            {% for model in available_models['llm'] %}
+                                <option value="{{ model }}" {% if current_settings['llm_model'] == model %}selected{% endif %}>
+                                    {{ model }}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 
@@ -245,33 +282,27 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // --- LOGIKA PŘEPÍNÁNÍ MODELU ---
-        const modelToggle = document.getElementById('modelToggle');
-        const modelLabel = document.getElementById('modelLabel');
+        // --- LOGIKA NASTAVENÍ MODELŮ ---
+        async function updateSettings() {
+            const sttModel = document.getElementById('sttSelect').value;
+            const llmModel = document.getElementById('llmSelect').value;
 
-        modelToggle.addEventListener('change', async function() {
-            const isGemini = this.checked;
-            const provider = isGemini ? 'GEMINI' : 'GROQ';
-            
-            // UI Update hned pro lepší pocit
-            modelLabel.textContent = isGemini ? 'Google Gemini' : 'Llama (Groq)';
-            
             try {
-                const response = await fetch('/api/set_provider', {
+                const response = await fetch('/api/update_settings', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({provider: provider})
+                    body: JSON.stringify({
+                        stt_model: sttModel,
+                        llm_model: llmModel
+                    })
                 });
                 const data = await response.json();
-                console.log('Provider set to:', data.provider);
+                console.log('Settings updated:', data.settings);
             } catch (error) {
-                console.error('Error switching provider:', error);
-                alert('Nepodařilo se přepnout model. Zkontrolujte připojení.');
-                // Revert UI if fail
-                this.checked = !isGemini;
-                modelLabel.textContent = !isGemini ? 'Google Gemini' : 'Llama (Groq)';
+                console.error('Error updating settings:', error);
+                alert('Chyba při ukládání nastavení modelů.');
             }
-        });
+        }
 
         // --- KONFIGURACE AUTO MODE ---
         const CONFIG = {

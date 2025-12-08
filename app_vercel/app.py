@@ -15,7 +15,7 @@ BASE_DIR = "/tmp"  # Writable adresář na Vercelu
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 TABLES_SOURCE_DIR = os.path.join(PROJECT_DIR, 'tables')
 
-# API Klient - GROQ (Whisper)
+# API Klient - GROQ
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # API Klient - GOOGLE GEMINI
@@ -24,15 +24,28 @@ if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
 
 # --- KONFIGURACE MODELŮ ---
-# Defaultní provider při startu
-CURRENT_LLM_PROVIDER = "GEMINI" 
 
-# Definice modelů
-MODELS_CONFIG = {
-    "GROQ_LLAMA": "llama-3.1-8b-instant",
-    "GROQ_WHISPER": "whisper-large-v3-turbo",
-    "GEMINI": "gemini-1.5-flash", #gemini-1.5-flash gemini-2.5-flash gemini-2.5-flash-lite
-    "TEMPERATURE": 0.1
+# Dostupné modely (dle zadání)
+AVAILABLE_MODELS = {
+    "stt": [
+        "whisper-large-v3-turbo",
+        "whisper-large-v3"
+    ],
+    "llm": [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "openai/gpt-oss-120b",
+        "gemini-1.5-flash",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite"
+    ]
+}
+
+# Aktuální nastavení (výchozí hodnoty)
+CURRENT_SETTINGS = {
+    "stt_model": "whisper-large-v3-turbo",
+    "llm_model": "gemini-1.5-flash",
+    "temperature": 0.1
 }
 
 # Kategorie - definice souborů
@@ -54,7 +67,6 @@ data_tables = {}
 item_mapping = {}
 all_known_items = []
 recent_updates = deque(maxlen=10)
-# NOVÉ: Log pro raw přepisy
 raw_transcripts_log = [] 
 
 # Výchozí stav vitálních funkcí
@@ -189,19 +201,26 @@ def index():
                            tables=generate_html_tables(), 
                            current_vitals=current_vitals, 
                            recent_updates=list(recent_updates),
-                           current_provider=CURRENT_LLM_PROVIDER)
+                           available_models=AVAILABLE_MODELS,
+                           current_settings=CURRENT_SETTINGS)
 
-@app.route('/api/set_provider', methods=['POST'])
-def set_provider():
-    """Endpoint pro přepínání LLM modelu z UI"""
-    global CURRENT_LLM_PROVIDER
+@app.route('/api/update_settings', methods=['POST'])
+def update_settings():
+    """Endpoint pro nastavení modelů (STT i LLM)"""
+    global CURRENT_SETTINGS
     data = request.json
-    new_provider = data.get('provider')
-    if new_provider in ["GEMINI", "GROQ"]:
-        CURRENT_LLM_PROVIDER = new_provider
-        logging.info(f"Provider switched to: {CURRENT_LLM_PROVIDER}")
-        return jsonify({'status': 'success', 'provider': CURRENT_LLM_PROVIDER})
-    return jsonify({'status': 'error', 'message': 'Invalid provider'}), 400
+    
+    new_stt = data.get('stt_model')
+    new_llm = data.get('llm_model')
+    
+    if new_stt and new_stt in AVAILABLE_MODELS["stt"]:
+        CURRENT_SETTINGS["stt_model"] = new_stt
+        
+    if new_llm and new_llm in AVAILABLE_MODELS["llm"]:
+        CURRENT_SETTINGS["llm_model"] = new_llm
+        
+    logging.info(f"Settings updated: STT={CURRENT_SETTINGS['stt_model']}, LLM={CURRENT_SETTINGS['llm_model']}")
+    return jsonify({'status': 'success', 'settings': CURRENT_SETTINGS})
 
 @app.route('/api/process_audio', methods=['POST'])
 def process_audio():
@@ -211,10 +230,13 @@ def process_audio():
     file = request.files['audio_file']
     
     try:
-        # 1. Transkripce (Whisper)
+        # 1. Transkripce (Whisper via Groq) - Použije vybraný STT model
+        stt_model = CURRENT_SETTINGS["stt_model"]
         file.filename = "rec.wav"
+        
+        logging.info(f"Transcribing using: {stt_model}")
         transcription = groq_client.audio.transcriptions.create(
-            model=MODELS_CONFIG["GROQ_WHISPER"],
+            model=stt_model,
             file=(file.filename, file.read()),
             response_format="text",
             language="cs" 
@@ -225,33 +247,35 @@ def process_audio():
         if not text or len(text) < 2:
             return jsonify({'transcription': '', 'extracted_data': {}, 'status': 'no_speech'})
 
-        # 2. Extrakce dat
+        # 2. Extrakce dat - Rozhodnutí podle názvu modelu
         extracted_data = {}
+        llm_model = CURRENT_SETTINGS["llm_model"]
         
-        if CURRENT_LLM_PROVIDER == "GEMINI":
-            logging.info(f"Processing via GEMINI ({MODELS_CONFIG['GEMINI']})")
+        logging.info(f"Extracting using LLM: {llm_model}")
+
+        if "gemini" in llm_model.lower():
+            # Použití Google Generative AI
             model = genai.GenerativeModel(
-                model_name=MODELS_CONFIG["GEMINI"],
+                model_name=llm_model,
                 system_instruction=get_system_prompt()
             )
             response = model.generate_content(text, generation_config={"response_mime_type": "application/json"})
             extracted_data = json.loads(response.text)
             
-        else: # GROQ
-            logging.info(f"Processing via GROQ ({MODELS_CONFIG['GROQ_LLAMA']})")
+        else: 
+            # Použití Groq (Llama a další)
             chat_completion = groq_client.chat.completions.create(
                 messages=[{'role': 'system', 'content': get_system_prompt()}, {'role': 'user', 'content': text}],
-                model=MODELS_CONFIG["GROQ_LLAMA"],
-                temperature=MODELS_CONFIG["TEMPERATURE"],
+                model=llm_model,
+                temperature=CURRENT_SETTINGS["temperature"],
                 response_format={"type": "json_object"}
             )
             extracted_data = json.loads(chat_completion.choices[0].message.content)
         
-        # --- ZMĚNA: LOGOVÁNÍ AŽ PO EXTRAKCI JSONU ---
+        # Logování
         timestamp_str = datetime.now().strftime('%H:%M:%S')
-        # Formátování záznamu pro debug (obsahuje text i JSON)
         log_entry = (
-            f"[{timestamp_str}]\n"
+            f"[{timestamp_str}] Models: {stt_model} + {llm_model}\n"
             f"TRANSCRIPTION: {text}\n"
             f"EXTRACTED JSON: {json.dumps(extracted_data, ensure_ascii=False)}\n"
             f"{'-'*40}"
@@ -272,7 +296,7 @@ def process_audio():
         })
 
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logging.error(f"Error processing audio: {e}")
         return jsonify({'error': str(e)}), 500
 
 def process_extracted_data(data):
@@ -336,9 +360,8 @@ def download_zip():
         # 2. Přidat Debug Info
         debug_info = f"""DEBUG LOG
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Current Provider: {CURRENT_LLM_PROVIDER}
-Models Config:
-{json.dumps(MODELS_CONFIG, indent=2)}
+Current Settings:
+{json.dumps(CURRENT_SETTINGS, indent=2)}
 """
         zf.writestr("debug_info.txt", debug_info)
 
