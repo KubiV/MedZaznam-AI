@@ -112,6 +112,18 @@
             margin-bottom: 20px;
             flex-wrap: wrap; 
         }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .control-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
 
         #micButton.btn-danger { animation: pulse 1.5s infinite; }
         @keyframes pulse {
@@ -124,20 +136,37 @@
         .mic-visualizer {
             background-color: #e9ecef;
             border-radius: 10px;
-            height: 10px;
+            height: 14px;
             overflow: hidden;
             margin-top: 5px;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+            position: relative;
         }
+        
+        /* Prahová čára */
+        .threshold-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #dc3545;
+            z-index: 5;
+            /* Výchozí poloha cca 30% (bude upraveno JS) */
+            left: 30%; 
+        }
+        
         .mic-level {
-            background-color: #0d6efd;
+            background-color: #6c757d; /* Šedá když je ticho */
             width: 0%;
             height: 100%;
             border-radius: 10px;
-            transition: width 0.08s linear;
+            transition: width 0.05s linear, background-color 0.2s;
+            z-index: 1;
         }
-        /* Pokud je zvuk příliš nahlas, zčervená */
-        .mic-level.clipping { background-color: #dc3545; }
+        
+        /* Barvy pro aktivní stav */
+        .mic-level.active { background-color: #0d6efd; } /* Modrá - mluvím */
+        .mic-level.recording { background-color: #198754; } /* Zelená - nahrává se */
 
 
         /* === VITALS DISPLAY === */
@@ -172,28 +201,45 @@
 
         <div class="collapse show" id="settingsCollapse">
             <div class="control-panel d-flex gap-4 align-items-center" id="controlPanel">
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="aiProviderSwitch" {{ 'checked' if provider == 'groq' }}>
-                    <label class="form-check-label small text-uppercase fw-bold text-muted" for="aiProviderSwitch">
-                        <span id="providerLabel">Model: {{ provider.upper() }}</span>
-                    </label>
+                
+                <div class="control-group">
+                    <span class="control-label">Přepis řeči (STT)</span>
+                    <select class="form-select form-select-sm" id="sttModelSelect" style="min-width: 180px;">
+                        {% for model in available_models['stt'] %}
+                            <option value="{{ model }}" {{ 'selected' if current_settings['stt_model'] == model }}>{{ model }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
+
+                <div class="control-group">
+                    <span class="control-label">AI Model (LLM)</span>
+                    <select class="form-select form-select-sm" id="llmModelSelect" style="min-width: 200px;">
+                        {% for model in available_models['llm'] %}
+                            <option value="{{ model }}" {{ 'selected' if current_settings['llm_model'] == model }}>{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
                 <div class="vr text-muted"></div>
-                <div class="form-check form-switch">
+                
+                <div class="form-check form-switch pt-3">
                     <input class="form-check-input" type="checkbox" role="switch" id="audioSaveSwitch" {{ 'checked' if save_audio }}>
                     <label class="form-check-label small text-uppercase fw-bold text-muted" for="audioSaveSwitch">
                         <span id="audioSaveLabel">Ukládat MP3</span>
                     </label>
                 </div>
+                
                 <div class="vr text-muted"></div>
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-mic text-muted"></i>
+                
+                <div class="control-group">
+                    <span class="control-label">Mikrofon</span>
                     <select class="form-select form-select-sm border-0 bg-light" id="micSelect" style="max-width: 250px;">
                         <option value="default">Výchozí mikrofon</option>
                     </select>
                 </div>
+                
                 <div class="vr text-muted ms-auto"></div>
-                <button id="resetSessionBtn" class="btn btn-outline-danger btn-sm fw-bold border-0">
+                <button id="resetSessionBtn" class="btn btn-outline-danger btn-sm fw-bold border-0 mt-3">
                     <i class="bi bi-trash"></i> Resetovat data
                 </button>
             </div>
@@ -220,14 +266,15 @@
                                 
                                 <div id="audioVisualizerContainer" style="display: none;" class="mt-3 text-start">
                                     <div class="d-flex justify-content-between text-muted small mb-1">
-                                        <span><i class="bi bi-mic-fill"></i> Úroveň hluku</span>
-                                        <span id="volumeValue">0%</span>
+                                        <span><i class="bi bi-soundwave"></i> Vstup serveru</span>
+                                        <span id="volumeValue">0 (Ticho)</span>
                                     </div>
-                                    <div class="mic-visualizer">
+                                    <div class="mic-visualizer" title="Červená čára značí práh pro spuštění nahrávání">
+                                        <div id="thresholdLine" class="threshold-line"></div>
                                         <div id="micLevelBar" class="mic-level"></div>
                                     </div>
                                     <p class="text-muted small mt-2 text-center mb-0">
-                                        Mluvte pro aktivaci záznamu. Ticho ukončí záznam.
+                                        Pokud se sloupec nedostane přes červenou čáru, mluvte hlasitěji.
                                     </p>
                                 </div>
                                 <div class="d-flex justify-content-center align-items-center gap-2 mt-3">
@@ -282,11 +329,11 @@
 
                 <div class="col-md-6">
                     <div class="widget-card card-JSON">
-                        <div class="widget-header collapsed" data-bs-toggle="collapse" data-bs-target="#collapseJson" aria-expanded="false">
+                        <div class="widget-header" data-bs-toggle="collapse" data-bs-target="#collapseJson" aria-expanded="true">
                             <h5><i class="bi bi-filetype-json"></i> Extrahovaná data (JSON)</h5>
                             <i class="bi bi-chevron-down chevron-icon"></i>
                         </div>
-                        <div id="collapseJson" class="collapse"> 
+                        <div id="collapseJson" class="collapse show"> 
                             <div class="widget-body">
                                 <div id="aiProcessing" class="ai-processing-box">{}</div>
                             </div>
@@ -484,83 +531,13 @@
         const transcriptionDiv = document.getElementById('lastTranscription');
         const aiProcessingDiv = document.getElementById('aiProcessing');
         
-        const providerSwitch = document.getElementById('aiProviderSwitch');
-        const providerLabel = document.getElementById('providerLabel');
+        // Nové výběry modelů
+        const sttModelSelect = document.getElementById('sttModelSelect');
+        const llmModelSelect = document.getElementById('llmModelSelect');
+        
         const audioSaveSwitch = document.getElementById('audioSaveSwitch');
         const micSelect = document.getElementById('micSelect');
         const resetBtn = document.getElementById('resetSessionBtn');
-
-        // === PROMĚNNÉ PRO VIZUALIZÉR ===
-        let audioContext = null;
-        let analyser = null;
-        let microphoneStream = null;
-        let visualizerAnimationId = null;
-
-        // === FUNKCE PRO VIZUALIZÉR ===
-        async function startVisualizer() {
-            try {
-                // Zobrazit UI vizualizéru
-                document.getElementById('audioVisualizerContainer').style.display = 'block';
-
-                // Získat přístup k mikrofonu (podle výběru v selectu)
-                const constraints = { 
-                    audio: { 
-                        deviceId: micSelect.value !== 'default' ? { exact: micSelect.value } : undefined 
-                    } 
-                };
-                
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                microphoneStream = stream;
-
-                // Audio kontext
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                const microphone = audioContext.createMediaStreamSource(stream);
-                
-                microphone.connect(analyser);
-                analyser.fftSize = 256;
-                
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-                const micLevelBar = document.getElementById('micLevelBar');
-                const volumeValue = document.getElementById('volumeValue');
-
-                // Smyčka vykreslování
-                function draw() {
-                    visualizerAnimationId = requestAnimationFrame(draw);
-                    analyser.getByteFrequencyData(dataArray);
-
-                    let sum = 0;
-                    for(let i = 0; i < bufferLength; i++) sum += dataArray[i];
-                    let average = sum / bufferLength;
-
-                    // Převod na procenta (citlivost)
-                    let volumePercent = Math.min(100, Math.round((average / 100) * 100));
-
-                    micLevelBar.style.width = volumePercent + '%';
-                    volumeValue.innerText = volumePercent + '%';
-                    
-                    if (volumePercent > 90) micLevelBar.classList.add('clipping');
-                    else micLevelBar.classList.remove('clipping');
-                }
-                draw();
-
-            } catch (err) {
-                console.error("Chyba vizualizace:", err);
-            }
-        }
-
-        function stopVisualizer() {
-            if (visualizerAnimationId) cancelAnimationFrame(visualizerAnimationId);
-            document.getElementById('audioVisualizerContainer').style.display = 'none';
-            
-            if (audioContext && audioContext.state !== 'closed') audioContext.close();
-            if (microphoneStream) microphoneStream.getTracks().forEach(track => track.stop());
-
-            document.getElementById('micLevelBar').style.width = '0%';
-            document.getElementById('volumeValue').innerText = '0%';
-        }
-
 
         // Socket.IO
         socket.on('connect', () => {
@@ -586,11 +563,12 @@
             micButton.innerHTML = '<i class="bi bi-stop-circle-fill me-2"></i> Zastavit záznam';
             micButton.classList.replace('btn-primary', 'btn-danger');
             statusDiv.textContent = 'Naslouchám...';
-            providerSwitch.disabled = true;
+            sttModelSelect.disabled = true;
+            llmModelSelect.disabled = true;
             audioSaveSwitch.disabled = true;
             
-            // SPUSTIT VIZUALIZÉR
-            startVisualizer();
+            // Zobrazit vizualizér
+            document.getElementById('audioVisualizerContainer').style.display = 'block';
         });
 
         socket.on('recording_stopped', () => {
@@ -598,13 +576,49 @@
             micButton.classList.replace('btn-danger', 'btn-primary');
             statusDiv.textContent = 'Připraven';
             processingDiv.style.display = 'none';
-            providerSwitch.disabled = false;
+            sttModelSelect.disabled = false;
+            llmModelSelect.disabled = false;
             audioSaveSwitch.disabled = false;
-
-            // ZASTAVIT VIZUALIZÉR
-            stopVisualizer();
+            
+            // Skrýt vizualizér
+            document.getElementById('audioVisualizerContainer').style.display = 'none';
+            document.getElementById('micLevelBar').style.width = '0%';
         });
         
+        // --- NOVÉ: Handler pro audio level ze serveru ---
+        socket.on('audio_level', (data) => {
+            const rms = data.rms;
+            const threshold = data.threshold;
+            const isSpeaking = data.is_speaking;
+
+            const micLevelBar = document.getElementById('micLevelBar');
+            const volumeValue = document.getElementById('volumeValue');
+            const thresholdLine = document.getElementById('thresholdLine');
+
+            // Normalizace zobrazení: Předpokládáme max RMS kolem 1000-2000 pro běžnou řeč
+            // Threshold 150 -> cca 5-10% na baru
+            
+            const maxVal = Math.max(threshold * 4, 1000); // Dynamické měřítko
+            let percentage = (rms / maxVal) * 100;
+            if (percentage > 100) percentage = 100;
+            
+            // Nastavení pozice threshold čáry
+            let thresholdPercent = (threshold / maxVal) * 100;
+            thresholdLine.style.left = thresholdPercent + '%';
+
+            micLevelBar.style.width = percentage + '%';
+            volumeValue.innerText = Math.round(rms);
+
+            // Barva sloupce
+            if (isSpeaking) {
+                micLevelBar.className = 'mic-level recording'; // Zelená (nahrává se)
+            } else if (rms > threshold) {
+                micLevelBar.className = 'mic-level active'; // Modrá (překročil práh)
+            } else {
+                micLevelBar.className = 'mic-level'; // Šedá (ticho)
+            }
+        });
+
         socket.on('speech_start', () => statusDiv.textContent = 'Detekuji hlas...');
         socket.on('speech_end', () => {
             statusDiv.textContent = 'Zpracovávám...';
@@ -670,8 +684,8 @@
             document.getElementById('vitals-history-list').innerHTML = '<div class="text-muted">Zatím žádné záznamy.</div>';
         });
         
-        socket.on('provider_changed', (data) => {
-            providerLabel.textContent = `Model: ${data.provider.toUpperCase()}`;
+        socket.on('settings_updated', (data) => {
+            console.log("Nastavení aktualizováno:", data);
         });
 
         // Listeners
@@ -680,9 +694,15 @@
             else socket.emit('stop_recording');
         });
 
-        providerSwitch.addEventListener('change', () => {
-            socket.emit('set_ai_provider', { provider: providerSwitch.checked ? 'groq' : 'local' });
-        });
+        function updateSettings() {
+            socket.emit('update_settings', {
+                stt_model: sttModelSelect.value,
+                llm_model: llmModelSelect.value
+            });
+        }
+
+        sttModelSelect.addEventListener('change', updateSettings);
+        llmModelSelect.addEventListener('change', updateSettings);
 
         audioSaveSwitch.addEventListener('change', () => {
             socket.emit('toggle_audio_save', { save: audioSaveSwitch.checked });

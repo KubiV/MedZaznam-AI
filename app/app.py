@@ -1,5 +1,6 @@
 import ollama
 from groq import Groq
+import google.generativeai as genai
 from dotenv import load_dotenv
 import json
 import pandas as pd
@@ -18,6 +19,7 @@ import tempfile
 import wave
 import shutil
 import glob
+import time  # <--- PRIDANO pro throttling vizualizace
 
 # Import pro konverzi do MP3
 try:
@@ -42,23 +44,41 @@ MIN_SPEECH_DURATION = 0.5  # V sekundách
 SILENCE_DURATION = 1.5     # V sekundách
 MAX_RECORDING_TIME = 10    # V sekundách
 
+# --- NAČTENÍ ENV PROMĚNNÝCH ---
+load_dotenv()
+
 # --- INICIALIZACE APLIKACE ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super-secret-key'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+# --- DOSTUPNÉ MODELY A NASTAVENÍ (NOVÉ) ---
+AVAILABLE_MODELS = {
+    "stt": [
+        "vosk-local",              # Lokální Vosk
+        "whisper-large-v3-turbo",  # Groq Whisper
+        "whisper-large-v3"         # Groq Whisper
+    ],
+    "llm": [
+        "gemma3:4b",               # Lokální Ollama
+        "gemma3:1b",               # Lokální Ollama
+        "deepseek-r1:1.5b",        # Lokální Ollama
+        "llama-3.3-70b-versatile", # Groq
+        "llama-3.1-8b-instant",    # Groq
+        "openai/gpt-oss-120b",     # Groq
+        "gemini-1.5-flash",        # Google
+        "gemini-2.5-flash-lite",   # Google
+        "gemini-2.5-flash"         # Google
+    ]
+}
+
+CURRENT_SETTINGS = {
+    "stt_model": "vosk-local",
+    "llm_model": "gemma3:4b",
+    "temperature": 0.1
+}
+
 # --- GLOBÁLNÍ PROMĚNNÉ A ZÁMKY ---
-# Nastavení AI Providera
-AI_PROVIDER = 'local'  # Výchozí hodnota: 'local' nebo 'groq'
-
-# -- Nastavení pro LOKÁLNÍ OLLAMA modely --
-LOCAL_MODEL_NAME = "gemma3:4b" # gemma3:1b, gemma3:4b, deepseek-r1:1.5b
-LOCAL_TEMPERATURE = 0.1     # Nižší teplota = přesnější extrakce dat, méně "kreativity"
-
-# -- Nastavení pro GROQ modely --
-GROQ_MODEL_NAME = "llama-3.1-8b-instant" # llama-3.3-70b-versatile, llama-3.1-8b-instant
-GROQ_TEMPERATURE = 0.2
-GROQ_TRANSCRIPTION_MODEL = "whisper-large-v3-turbo" # whisper-large-v3-turbo, whisper-large-v3
 
 # -- Nastavení nahrávání --
 SAVE_CONTINUOUS_AUDIO = False # Výchozí stav ukládání audia
@@ -70,7 +90,6 @@ is_recording = False
 recording_lock = threading.Lock()
 
 # --- DEFINICE KATEGORIÍ A SOUBORŮ ---
-# UPRAVENO: Přidána 7. kategorie "Other"
 CATEGORY_FILES = {
     "DrABCDE": "tables/DrABCDE.csv",
     "Medication": "tables/Medication.csv",
@@ -88,7 +107,7 @@ all_known_items = [] # Seznam všech položek pro LLM prompt
 
 # --- NOVÉ GLOBÁLNÍ PROMĚNNÉ PRO DASHBOARD (TF, TK, atd.) ---
 
-# 1. KROK - SYNONYMA: Vše převedeme na název, který JE v CSV (Srdeční frekvence)
+# 1. KROK - SYNONYMA: (ROZŠÍŘENO O MEDIKACI DLE VERCEL)
 ITEM_SYNONYMS = {
     # Všechny varianty tepu -> "Srdeční frekvence" (aby to sedělo do DrABCDE)
     "tepová frekvence": "Srdeční frekvence",
@@ -120,13 +139,65 @@ ITEM_SYNONYMS = {
     "avpu": "AVPU",
     
     # CRT
-    "kapilární návrat": "CRT",
-    "crt": "CRT"
+    "CRT": "kapilární návrat",
+    "crt": "kapilární návrat",
+
+    # --- NOVÉ: Synonyma pro Léčiva (Medication.csv) ---
+    "adrenalin": "Adrenalin",
+    "amiodaron": "Amiodaron",
+    "atropin": "Atropin",
+    "noradrenalin": "Noradrenalin",
+    "adenosin": "Adenosin",
+    "midazolam": "Midazolam",
+    "fentanyl": "Fentanyl",
+    "morfin": "Morfin",
+    "ketamin": "Ketamin",
+    "propofol": "Propofol",
+    "sufentanil": "Sufentanil",
+    "rokuronium": "Rokuronium",
+    "sukcinylcholin": "Sukcinylcholin",
+    
+    # Složené názvy
+    "aspirin": "Aspirin (ASA)", 
+    "asa": "Aspirin (ASA)",
+    
+    "heparin": "Heparin",
+    
+    "nitroglycerin": "Nitroglycerin (Isoket)", 
+    "isoket": "Nitroglycerin (Isoket)",
+    
+    "furosemid": "Furosemid",
+    
+    "salbutamol": "Salbutamol (Ventolin)", 
+    "ventolin": "Salbutamol (Ventolin)",
+    
+    "urapidil": "Urapidil (Ebrantil)", 
+    "ebrantil": "Urapidil (Ebrantil)",
+    
+    "exacyl": "Exacyl (Kys. tranexamová)", 
+    "kys. tranexamová": "Exacyl (Kys. tranexamová)",
+    "kyselina tranexamová": "Exacyl (Kys. tranexamová)",
+    
+    "magnesium sulfát": "Magnesium sulfát",
+    "magnesium": "Magnesium sulfát",
+    
+    "naloxon": "Naloxon",
+    
+    "flumazenil": "Flumazenil (Anexate)", 
+    "anexate": "Flumazenil (Anexate)",
+    
+    "glukóza": "Glukóza (G40%)", 
+    "g40%": "Glukóza (G40%)",
+    "g40": "Glukóza (G40%)",
+    
+    "paracetamol": "Paracetamol",
+    "ondansetron": "Ondansetron",
+    "ceftriaxon": "Ceftriaxon"
 }
 
 # 2. KROK - MAPPING NA DISPLEJ: Oficiální název z CSV -> Zkratka na dashboardu
 VITALS_MAPPING = {
-    "srdeční frekvence": "TF", # Teď mapujeme "Srdeční frekvence" na "TF"
+    "srdeční frekvence": "TF",
     "krevní tlak": "TK",
     "dechová frekvence": "DF",
     "spo2": "SpO2",
@@ -160,18 +231,14 @@ logging.basicConfig(
 def setup_logging(session_dir):
     """
     UPRAVENO: Přidá FileHandler pro aktuální session, ale zachová StreamHandler (konzoli).
-    Tím se docílí toho, že logging.info jde tam i tam.
     """
     log_file = os.path.join(session_dir, 'session_log.log')
     logger = logging.getLogger()
     
-    # Odstraníme POUZE staré FileHandlery (aby se nepsalo do starých session souborů)
-    # StreamHandler pro konzoli ponecháme.
     for handler in logger.handlers[:]:
         if isinstance(handler, logging.FileHandler):
             logger.removeHandler(handler)
             
-    # Přidáme nový file handler pro aktuální složku
     file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(file_handler)
@@ -180,75 +247,32 @@ def setup_logging(session_dir):
     log_startup_parameters()
 
 def log_startup_parameters():
-    """
-    Zaloguje všechny důležité parametry při startu aplikace.
-    """
     logging.info("="*60)
     logging.info("INICIALIZACE APLIKACE - PARAMETRY SPUŠTĚNÍ")
     logging.info("="*60)
     
-    # Audio parametry
     logging.info("--- AUDIO PARAMETRY ---")
-    logging.info(f"RATE (vzorkovací frekvence): {RATE} Hz")
-    logging.info(f"CHUNK (velikost bufferu): {CHUNK} byte")
-    logging.info(f"CHANNELS (počet kanálů): {CHANNELS}")
-    logging.info(f"SILENCE_THRESHOLD (práh ticha): {SILENCE_THRESHOLD}")
-    logging.info(f"MIN_SPEECH_DURATION (minimální trvání řeči): {MIN_SPEECH_DURATION} s")
-    logging.info(f"SILENCE_DURATION (trvání ticha pro ukončení): {SILENCE_DURATION} s")
-    logging.info(f"MAX_RECORDING_TIME (maximální čas záznamu): {MAX_RECORDING_TIME} s")
+    logging.info(f"RATE: {RATE} Hz, CHUNK: {CHUNK}, CHANNELS: {CHANNELS}")
     
-    # AI Provider
-    logging.info("--- AI POSKYTOVATEL ---")
-    logging.info(f"AI_PROVIDER: {AI_PROVIDER}")
+    logging.info("--- NASTAVENÍ AI MODELŮ ---")
+    logging.info(f"STT Model: {CURRENT_SETTINGS['stt_model']}")
+    logging.info(f"LLM Model: {CURRENT_SETTINGS['llm_model']}")
     
-    # Lokální Ollama nastavení
-    logging.info("--- LOKÁLNÍ OLLAMA NASTAVENÍ ---")
-    logging.info(f"LOCAL_MODEL_NAME: {LOCAL_MODEL_NAME}")
-    logging.info(f"LOCAL_TEMPERATURE: {LOCAL_TEMPERATURE}")
-    
-    # GROQ nastavení
-    logging.info("--- GROQ NASTAVENÍ ---")
-    logging.info(f"GROQ_MODEL_NAME: {GROQ_MODEL_NAME}")
-    logging.info(f"GROQ_TEMPERATURE: {GROQ_TEMPERATURE}")
-    logging.info(f"GROQ_TRANSCRIPTION_MODEL: {GROQ_TRANSCRIPTION_MODEL}")
-    
-    # Audio ukládání
-    logging.info("--- NAHRÁVÁNÍ AUDIA ---")
-    logging.info(f"SAVE_CONTINUOUS_AUDIO: {SAVE_CONTINUOUS_AUDIO}")
-    
-    # Cesty
-    logging.info("--- CESTY A KONFIGURACE ---")
+    logging.info("--- CESTY ---")
     logging.info(f"BASE_DIR: {BASE_DIR}")
-    logging.info(f"SESSIONS_BASE_DIR: {SESSIONS_BASE_DIR}")
-    logging.info(f"MODEL_PATH: {MODEL_PATH}")
-    logging.info(f"Model dostupný: {os.path.exists(MODEL_PATH)}")
     
-    # Mikrofon
-    logging.info("--- NASTAVENÍ MIKROFONU ---")
-    if SELECTED_DEVICE_INDEX is not None:
-        logging.info(f"SELECTED_DEVICE_INDEX: {SELECTED_DEVICE_INDEX}")
-    else:
-        logging.info("SELECTED_DEVICE_INDEX: None (výchozí zařízení)")
+    logging.info("--- API KLÍČE ---")
+    logging.info(f"GROQ_API_KEY nastaveno: {bool(os.environ.get('GROQ_API_KEY'))}")
+    logging.info(f"GOOGLE_API_KEY nastaveno: {bool(os.environ.get('GOOGLE_API_KEY'))}")
     
-    # GROQ API
-    logging.info("--- EXTERNÍCH SLUŽBY ---")
-    has_groq_key = bool(os.environ.get("GROQ_API_KEY"))
-    logging.info(f"GROQ_API_KEY nastaveno: {has_groq_key}")
-    
-    logging.info("="*60)
-    logging.info("INICIALIZACE DOKONČENA")
     logging.info("="*60)
 
 def get_or_create_session_dir(force_new=False):
-    """
-    Vytvoří novou složku pro seanci nebo vrátí cestu k poslední existující.
-    """
     global current_session_dir
     
     if not os.path.exists(SESSIONS_BASE_DIR):
         os.makedirs(SESSIONS_BASE_DIR)
 
-    # UPRAVENO: Pokud chceme novou (Reset tlačítko), vytvoříme ji
     if force_new:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         session_name = f"Session_{timestamp}"
@@ -257,23 +281,19 @@ def get_or_create_session_dir(force_new=False):
         setup_logging(current_session_dir) 
         return current_session_dir
     
-    # Pokud už máme v paměti cestu, vrátíme ji
     if current_session_dir and os.path.exists(current_session_dir):
         return current_session_dir
     
-    # UPRAVENO: Při startu aplikace (nebo reloadu) najdeme poslední existující
     subdirs = glob.glob(os.path.join(SESSIONS_BASE_DIR, 'Session_*'))
     if subdirs:
-        # Najdi nejnovější složku
         latest_session = max(subdirs, key=os.path.getctime)
         current_session_dir = latest_session
-        setup_logging(current_session_dir) # Aktivujeme logování do této existující složky
+        setup_logging(current_session_dir)
         return current_session_dir
     else:
-        # Pokud žádná neexistuje (úplně první start), vytvoříme novou
         return get_or_create_session_dir(force_new=True)
 
-# --- NAČTENÍ A PŘÍPRAVA DAT (NOVÉ PRO 6+1 TABULEK) ---
+# --- NAČTENÍ A PŘÍPRAVA DAT ---
 def initialize_data_structures():
     global data_tables, item_mapping, all_known_items
     
@@ -285,39 +305,23 @@ def initialize_data_structures():
         csv_path = os.path.join(BASE_DIR, filename)
         
         try:
-            # Načteme CSV, oddělovač je středník
             df = pd.read_csv(csv_path, delimiter=';')
-            
-            # Předpokládáme, že název položky je v PRVNÍM sloupci (index 0)
-            # Ať se sloupec jmenuje jakkoliv (DrABCDE, Název položky, Položka...)
             first_col_name = df.columns[0]
-            
-            # Nastavíme první sloupec jako index
             df.set_index(first_col_name, inplace=True)
-            df.index.name = "Položka" # Sjednotíme název indexu pro vizualizaci
-            
-            # Vytvoříme sloupec pro počáteční stav (zatím prázdný)
+            df.index.name = "Položka"
             df['Aktuální stav'] = ""
-            
-            # Vybereme jen sloupec 'Aktuální stav' pro naši runtime tabulku, 
-            # ale můžeme si pamatovat i metadata pokud bychom chtěli tooltipy.
-            # Pro zjednodušení bereme jen index a stav.
             clean_df = df[['Aktuální stav']].copy()
-            
-            # Uložíme do slovníku tabulek
             data_tables[category] = clean_df
             
-            # Mapování pro AI a vyhledávání
             for item in clean_df.index:
                 item_str = str(item).strip()
                 if item_str:
-                    item_mapping[item_str.lower()] = category # Case-insensitive mapování
+                    item_mapping[item_str.lower()] = category
                     all_known_items.append(item_str)
                     
             logging.info(f"Načtena kategorie {category} ze souboru {filename} ({len(clean_df)} položek).")
 
         except FileNotFoundError:
-            # UPRAVENO: Pokud soubor neexistuje (což u Other ze začátku nebude), vytvoří se prázdná tabulka bez chyb
             if category == "Other":
                 logging.info(f"Info: Vytvářím prázdnou tabulku pro kategorii {category}.")
             else:
@@ -328,15 +332,11 @@ def initialize_data_structures():
         except Exception as e:
             logging.error(f"Chyba při načítání {filename}: {e}")
 
-# Inicializace struktur
 initialize_data_structures()
-
-# UPRAVENO: Hned při startu inicializujeme session, aby logy někam padaly
 get_or_create_session_dir(force_new=False)
 
 
-# --- LLM PROMPTY (UPRAVENO PRO VŠECHNY POLOŽKY) ---
-# Vytvoříme seznam všech položek pro prompt
+# --- LLM PROMPTY ---
 items_list_str = ', '.join(f'"{item}"' for item in all_known_items)
 
 system_prompt = f"""
@@ -350,15 +350,15 @@ Pravidla:
 2.  JSON obsahuje klíč "polozky", což je slovník.
 3.  Klíče ve slovníku "polozky" musí odpovídat názvům z následujícího seznamu (nebo jejich blízkým synonymům, které normalizuješ na tento seznam):
     [{items_list_str}]
-4.  Normalizuj synonyma na oficiální názvy ze seznamu (např. "tep" -> "Srdeční frekvence", "saturace" -> "SpO2", "tlak" -> "Krevní tlak").
+4.  Normalizuj synonyma na oficiální názvy ze seznamu (např. "tep" -> "Srdeční frekvence", "saturace" -> "SpO2", "Isoket" -> "Nitroglycerin (Isoket)").
 5.  Hodnoty:
     - Čísla extrahuj jako čísla nebo formátovaný string (např. "120/80").
     - Textové popisy extrahuj stručně a jasně.
 6.  Pokud text neobsahuje žádné relevantní informace, vrať prázdný slovník `{{"polozky": {{}}}}`.
 
 Příklady:
-Uživatel: "Pacient má saturaci 92 a tlak 130 na 80."
-Výstup: {{"polozky": {{"SpO2": "92", "Krevní tlak": "130/80"}}}}
+Uživatel: "Pacient má saturaci 92 a tlak 130 na 80. Podán Isoket jeden vstřik."
+Výstup: {{"polozky": {{"SpO2": "92", "Krevní tlak": "130/80", "Nitroglycerin (Isoket)": "1 vstřik"}}}}
 
 Uživatel: "Podávám 1 miligram adrenalinu intravenózně."
 Výstup: {{"polozky": {{"Adrenalin": "1 mg i.v."}}}}
@@ -367,15 +367,20 @@ Uživatel: "Pacient je mírně dušný, bez alergie."
 Výstup: {{"polozky": {{"Dušnost": "Mírná", "Alergická anamnéza (AA)": "Neguje"}}}}
 """
 
-# --- INICIALIZACE GROQ KLIENTA ---
-load_dotenv()
-api_key = os.getenv("GROQ_API_KEY")
-
+# --- INICIALIZACE API KLIENTŮ ---
+groq_client = None
 try:
     groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 except Exception as e:
     logging.warning(f"Nepodařilo se inicializovat GROQ klienta: {e}")
-    groq_client = None
+
+# Google AI
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    logging.warning("Chybí GOOGLE_API_KEY, modely Gemini nebudou fungovat.")
+
 
 # --- POMOCNÉ AUDIO FUNKCE ---
 def get_audio_input_devices():
@@ -406,8 +411,10 @@ class VoiceSpeechProcessor:
         
         self.continuous_wave_file = None
         self.continuous_file_path_wav = None
+        self.last_emit_time = 0 # Pro vizualizaci na klientovi
         
-        if AI_PROVIDER == 'local':
+        # Inicializace modelu pouze pokud je vybrán lokální Vosk
+        if CURRENT_SETTINGS['stt_model'] == 'vosk-local':
             self.initialize_vosk()
 
     def initialize_vosk(self):
@@ -446,11 +453,9 @@ class VoiceSpeechProcessor:
             self.stream = self.p.open(**kwargs)
             logging.info("Audio stream inicializován")
             
-            # Pokud je zapnuto nahrávání, vytvoříme soubor v aktuální session
             if SAVE_CONTINUOUS_AUDIO:
                 session_dir = get_or_create_session_dir(force_new=False)
                 timestamp = datetime.now().strftime('%H%M%S')
-                # UPRAVENO: Název souboru je jasně identifikovatelný v session složce
                 self.continuous_file_path_wav = os.path.join(session_dir, f'recording_{timestamp}.wav')
                 
                 self.continuous_wave_file = wave.open(self.continuous_file_path_wav, 'wb')
@@ -466,8 +471,11 @@ class VoiceSpeechProcessor:
             raise
 
     def is_speech_detected(self, audio_data):
-        rms = np.sqrt(np.mean(np.frombuffer(audio_data, dtype=np.int16).astype(np.float64)**2))
-        return rms > SILENCE_THRESHOLD
+        # Bezpečný výpočet RMS s přetypováním na float, aby nedošlo k přetečení int16
+        data_int16 = np.frombuffer(audio_data, dtype=np.int16)
+        data_float = data_int16.astype(np.float64)
+        rms = np.sqrt(np.mean(data_float**2))
+        return rms, rms > SILENCE_THRESHOLD
 
     def transcribe_audio_vosk(self, audio_frames):
         if not self.recognizer:
@@ -479,6 +487,7 @@ class VoiceSpeechProcessor:
             audio_data = b''.join(audio_frames)
             results = []
             
+            # Zpracování po částech
             for i in range(0, len(audio_data), CHUNK * 10):
                 chunk = audio_data[i:i + CHUNK * 10]
                 if self.recognizer.AcceptWaveform(chunk):
@@ -491,7 +500,6 @@ class VoiceSpeechProcessor:
                 results.append(final_result['text'])
 
             full_text = ' '.join(results).strip()
-            # UPRAVENO: Používám logging místo print pro konzistenci
             logging.info(f"[VOSK PŘEPIS] {full_text}")
             return full_text if full_text else None
         except Exception as e:
@@ -513,15 +521,20 @@ class VoiceSpeechProcessor:
                     wf.writeframes(b''.join(audio_frames))
                 tmp_wav_path = tmp_wav_file.name
 
+            selected_stt_model = CURRENT_SETTINGS.get('stt_model', 'whisper-large-v3-turbo')
+            # Pokud je z nějakého důvodu nastaveno 'vosk-local', ale volá se tato metoda, použijeme fallback
+            if selected_stt_model == 'vosk-local': 
+                selected_stt_model = 'whisper-large-v3-turbo'
+
             with open(tmp_wav_path, "rb") as audio_file:
                 transcription = groq_client.audio.transcriptions.create(
-                    model=GROQ_TRANSCRIPTION_MODEL,
+                    model=selected_stt_model,
                     file=audio_file,
-                    response_format="text"
+                    response_format="text",
+                    language="cs"
                 )
             os.remove(tmp_wav_path)
-            # UPRAVENO: Používám logging místo print
-            logging.info(f"[GROQ PŘEPIS] {transcription}")
+            logging.info(f"[GROQ ({selected_stt_model}) PŘEPIS] {transcription}")
             return transcription
         except Exception as e:
             logging.error(f"Chyba při GROQ transkripci: {e}", exc_info=True)
@@ -533,7 +546,21 @@ class VoiceSpeechProcessor:
             self.continuous_wave_file.writeframes(data)
 
         self.audio_buffer.append(data)
-        speech_detected = self.is_speech_detected(data)
+        
+        # Získání RMS a rozhodnutí o řeči
+        rms, speech_detected = self.is_speech_detected(data)
+
+        # --- VIZUALIZACE PRO KLIENTA ---
+        # Posíláme data zpět na klienta, aby viděl "serverový" pohled na mikrofon
+        current_time = time.time()
+        # Omezíme frekvenci odesílání na cca 20x za sekundu, aby se nezahltila síť
+        if current_time - self.last_emit_time > 0.05:
+            socketio.emit('audio_level', {
+                'rms': float(rms),
+                'threshold': SILENCE_THRESHOLD,
+                'is_speaking': self.is_speaking
+            })
+            self.last_emit_time = current_time
 
         if not self.is_speaking and speech_detected:
             self.is_speaking = True
@@ -573,9 +600,13 @@ class VoiceSpeechProcessor:
         def process_in_background():
             try:
                 transcribed_text = None
-                if AI_PROVIDER == 'local':
+                stt_model = CURRENT_SETTINGS['stt_model']
+                
+                # Rozhodování podle nastaveného modelu
+                if stt_model == 'vosk-local':
                     transcribed_text = self.transcribe_audio_vosk(frames_to_process)
-                elif AI_PROVIDER == 'groq':
+                else:
+                    # Ostatní modely (Whisper) jdou přes Groq
                     transcribed_text = self.transcribe_audio_groq(frames_to_process)
 
                 if transcribed_text:
@@ -647,28 +678,69 @@ class VoiceSpeechProcessor:
             logging.error(f"Chyba při čištění audio zdrojů: {e}")
 
 # --- ZPRACOVÁNÍ DAT POMOCÍ LLM ---
-def get_data_from_ollama(text: str) -> dict | None:
+def get_data_from_ollama(text: str, model_name: str) -> dict | None:
     try:
+        logging.info(f"Odesílám do Ollama ({model_name})...")
         response = ollama.chat(
-            model=LOCAL_MODEL_NAME,
+            model=model_name,
             messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': text}],
-            options={'temperature': LOCAL_TEMPERATURE, 'response_format': {'type': 'json_object'}}
+            options={'temperature': CURRENT_SETTINGS['temperature'], 'response_format': {'type': 'json_object'}}
         )
-        return json.loads(response['message']['content'])
+        
+        content = response['message']['content']
+        logging.info(f"Ollama odpověď (raw): {content}")
+        
+        if not content:
+            logging.error("Ollama vrátila prázdnou odpověď.")
+            return None
+
+        # --- OPRAVA: Odstranění Markdown značek ---
+        clean_content = content.replace("```json", "").replace("```", "").strip()
+
+        return json.loads(clean_content)
+
+    except json.JSONDecodeError as e:
+        logging.error(f"Ollama nevrátila validní JSON. Chyba: {e}")
+        # Pro jistotu vypíšeme, co jsme se snažili parsovat po očištění
+        logging.error(f"Data po očištění: {clean_content if 'clean_content' in locals() else 'N/A'}")
+        return None
     except Exception as e:
-        logging.error(f"Chyba při komunikaci s Ollama: {e}")
+        logging.error(f"Kritická chyba při komunikaci s Ollama: {e}")
+        return None
+    try:
+        logging.info(f"Odesílám do Ollama ({model_name})...")
+        response = ollama.chat(
+            model=model_name,
+            messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': text}],
+            options={'temperature': CURRENT_SETTINGS['temperature'], 'response_format': {'type': 'json_object'}}
+        )
+        
+        content = response['message']['content']
+        # Logování obsahu pro kontrolu
+        logging.info(f"Ollama odpověď (raw): {content}")
+        
+        if not content:
+            logging.error("Ollama vrátila prázdnou odpověď.")
+            return None
+            
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        logging.error(f"Ollama nevrátila validní JSON. Chyba: {e}")
+        logging.error(f"Přijatá data: {content if 'content' in locals() else 'Žádná data'}")
+        return None
+    except Exception as e:
+        logging.error(f"Kritická chyba při komunikaci s Ollama: {e}")
         return None
 
-def get_data_from_groq(text: str) -> dict | None:
+def get_data_from_groq(text: str, model_name: str) -> dict | None:
     if not groq_client:
         logging.error("GROQ klient není dostupný.")
-        socketio.emit('processing_error', {'message': 'GROQ klient není dostupný.'})
         return None
     try:
         chat_completion = groq_client.chat.completions.create(
             messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': text}],
-            model=GROQ_MODEL_NAME,
-            temperature=GROQ_TEMPERATURE,
+            model=model_name,
+            temperature=CURRENT_SETTINGS['temperature'],
             response_format={"type": "json_object"}
         )
         return json.loads(chat_completion.choices[0].message.content)
@@ -676,35 +748,59 @@ def get_data_from_groq(text: str) -> dict | None:
         logging.error(f"Chyba při komunikaci s GROQ: {e}")
         return None
 
+def get_data_from_google(text: str, model_name: str) -> dict | None:
+    try:
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            system_instruction=system_prompt
+        )
+        response = model.generate_content(
+            text, 
+            generation_config={"response_mime_type": "application/json"}
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        logging.error(f"Chyba při komunikaci s Google AI: {e}")
+        return None
+
 def save_to_csv():
-    """
-    UPRAVENO: Ukládá soubory pro všech 6 kategorií.
-    """
     try:
         session_dir = get_or_create_session_dir(force_new=False)
-        
         for category, df in data_tables.items():
             safe_cat_name = category.replace(" ", "_")
             csv_path = os.path.join(session_dir, f'vysledny_stav_{safe_cat_name}.csv')
             df.to_csv(csv_path)
-            
         logging.info(f"Všechny tabulky aktualizovány v: {session_dir}")
     except Exception as e:
         logging.error(f"Chyba při ukládání CSV: {e}")
 
 def process_with_llm(text: str):
+    # DŮLEŽITÉ: global musí být na úplně prvním řádku po definici funkce
     global data_tables, item_mapping, current_vitals, recent_updates
     
     get_or_create_session_dir(force_new=False)
     
-    logging.info(f"Zpracovávám text: '{text}' pomocí {AI_PROVIDER}")
+    llm_model = CURRENT_SETTINGS['llm_model']
+    logging.info(f"Zpracovávám text: '{text}' pomocí {llm_model}")
     
     extracted_data = None
-    if AI_PROVIDER == 'local':
-        extracted_data = get_data_from_ollama(text)
-    elif AI_PROVIDER == 'groq' and groq_client:
-        extracted_data = get_data_from_groq(text)
+    
+    # --- OPRAVENÁ ROZHODOVACÍ LOGIKA (zahrnuje fix pro openai/gpt-oss) ---
+    model_lower = llm_model.lower()
+    
+    # 1. Google Gemini
+    if "gemini" in model_lower:
+        extracted_data = get_data_from_google(text, llm_model)
+        
+    # 2. Groq (Llama, Mixtral, GPT, OpenAI atd.)
+    elif "llama" in model_lower or "mixtral" in model_lower or "gpt" in model_lower or "openai" in model_lower:
+        extracted_data = get_data_from_groq(text, llm_model)
+        
+    # 3. Fallback na lokální Ollama
+    else:
+        extracted_data = get_data_from_ollama(text, llm_model)
 
+    # Zpracování výsledků
     if extracted_data and 'polozky' in extracted_data and extracted_data['polozky']:
         logging.info(f"LLM extrahoval data: {extracted_data}")
         timestamp = datetime.now().strftime('%H:%M:%S')
@@ -715,74 +811,56 @@ def process_with_llm(text: str):
         for item_name, value in items.items():
             item_lower = item_name.lower()
 
-            # --- SYNONYM CHECK (SF -> Tepová frekvence) ---
-            # Pokud je název v synonymech, přepíšeme ho na oficiální název pro tabulky a vitals
+            # --- SYNONYM CHECK ---
             if item_lower in ITEM_SYNONYMS:
                 original_name = item_name
-                item_name = ITEM_SYNONYMS[item_lower] # Přepis na "Tepová frekvence"
-                item_lower = item_name.lower() # Aktualizace lower case pro další logiku
+                item_name = ITEM_SYNONYMS[item_lower]
+                item_lower = item_name.lower()
                 logging.info(f"Synonymum nahrazeno: {original_name} -> {item_name}")
 
-            # --- HISTORIE: Zaznamenáme VŠECHNO ---
-            # Formát: čas - položka - hodnota
+            # --- HISTORIE ---
             recent_updates.appendleft(f"{timestamp} - {item_name} - {value}")
 
-            # --- DASHBOARD UPDATE (Fixní hodnoty) ---
-            # Zjistíme, jestli (již normalizovaná) položka patří mezi vitální funkce
+            # --- DASHBOARD UPDATE ---
             vital_key = VITALS_MAPPING.get(item_lower)
             if vital_key:
                 current_vitals[vital_key] = str(value)
 
-            # --- LOGIKA TABULEK (DataFrame) ---
-            # Najdeme, do jaké kategorie položka patří
+            # --- LOGIKA TABULEK ---
             category = item_mapping.get(item_lower)
             
-            # Pokud nenajdeme přesnou shodu, zkusíme najít původní klíč v mapování
             if not category:
                 for known_item, cat in item_mapping.items():
                     if known_item == item_lower:
                         category = cat
-                        # Získáme oficiální název položky z dataframe
+                        # Najdeme přesný název v indexu (kvůli velikosti písmen)
                         real_item_name_list = list(data_tables[cat].index[data_tables[cat].index.str.lower() == known_item])
                         if real_item_name_list:
                             item_name = real_item_name_list[0] 
                         break
             
-            # --- ŘEŠENÍ: Pokud kategorie stále neexistuje, použijeme FALLBACK kategorii "Other" ---
+            # --- FALLBACK DO "OTHER" ---
             if not category:
                 logging.warning(f"Položka '{item_name}' nebyla nalezena. Přidávám ji do 'Other'.")
-                # Fallback kategorie - nová 7. kategorie "Other"
                 category = "Other"
-                
-                # Ujistíme se, že tabulka existuje
                 if category in data_tables:
                     df = data_tables[category]
-                    # Pokud položka v indexu opravdu není, přidáme ji
                     if item_name not in df.index:
-                        # Vytvoříme nový řádek plný prázdných stringů
                         new_row_data = {col: "" for col in df.columns}
-                        # Přidáme položku do DataFrame
                         df.loc[item_name] = new_row_data
-                        
-                        # Aktualizujeme mapování, aby to příště fungovalo rovnou
                         item_mapping[item_lower] = category
                         all_known_items.append(item_name)
-                        logging.info(f"Položka '{item_name}' přidána do kategorie '{category}'.")
             
             # Zápis do tabulky
             if category and category in data_tables:
                 df = data_tables[category]
-                
-                # Zápis pouze jednou (sparse data)
                 if timestamp not in df.columns:
                     df[timestamp] = ""
                 
-                # Zápis hodnoty do konkrétního pole
                 if item_name in df.index:
                     df.loc[item_name, timestamp] = str(value)
                     updated_categories.add(category)
                 else:
-                    # Fallback pro různé velikosti písmen
                     matching_index = df.index[df.index.str.lower() == item_lower]
                     if not matching_index.empty:
                         real_index = matching_index[0]
@@ -793,21 +871,18 @@ def process_with_llm(text: str):
         save_to_csv() 
         
     else:
-        logging.info("Žádná relevantní data k aktualizaci.")
-        socketio.emit('processing_error', {'message': 'Nerozuměl jsem, žádná data k aktualizaci.'})
+        logging.info("Žádná relevantní data k aktualizaci nebo chyba LLM.")
+        socketio.emit('processing_error', {'message': 'Nerozuměl jsem nebo LLM selhalo.'})
 
 def generate_html_tables():
     """Generuje HTML pro všech 7 tabulek."""
     tables_html = {}
     for category, df in data_tables.items():
-        # Vyplníme NaN prázdným řetězcem a vyrenderujeme
         tables_html[category] = df.fillna('').to_html(classes="table table-striped table-hover table-sm", border=0)
     return tables_html
 
 def emit_table_update(extracted_data=None):
     tables_html = generate_html_tables()
-    
-    # Převedeme recent_updates deque na list pro JSON serializaci
     updates_list = list(recent_updates)
     
     socketio.emit('table_update', {
@@ -824,7 +899,8 @@ def index():
     tables_html = generate_html_tables()
     return render_template('index.html', 
                            tables=tables_html,
-                           provider=AI_PROVIDER,
+                           available_models=AVAILABLE_MODELS,
+                           current_settings=CURRENT_SETTINGS,
                            save_audio=SAVE_CONTINUOUS_AUDIO,
                            current_vitals=current_vitals,
                            recent_updates=list(recent_updates))
@@ -833,7 +909,6 @@ def index():
 def process_text():
     user_text = request.form['text_input']
     if user_text:
-        # UPRAVENO: Použití logging.info pro konzistenci
         logging.info(f"[MANUÁLNÍ VSTUP] {user_text}")
         threading.Thread(target=process_with_llm, args=(user_text,)).start()
     return redirect(url_for('index'))
@@ -841,7 +916,6 @@ def process_text():
 @app.route('/sw.js')
 def service_worker():
     response = send_from_directory('static', 'sw.js')
-    # Zakážeme cacheování samotného souboru sw.js, aby se změny projevily hned
     response.headers['Cache-Control'] = 'no-cache'
     return response
 
@@ -849,14 +923,23 @@ def service_worker():
 def manifest():
     return send_from_directory('static', 'manifest.json')
 
-@socketio.on('set_ai_provider')
-def set_ai_provider(data):
-    global AI_PROVIDER
-    new_provider = data.get('provider')
-    if new_provider in ['local', 'groq']:
-        AI_PROVIDER = new_provider
-        logging.info(f"AI provider změněn na: {AI_PROVIDER}")
-        emit('provider_changed', {'provider': AI_PROVIDER})
+@socketio.on('update_settings')
+def handle_update_settings(data):
+    """
+    Nový handler pro nastavení modelu.
+    Očekává: { 'stt_model': '...', 'llm_model': '...' }
+    """
+    global CURRENT_SETTINGS
+    stt = data.get('stt_model')
+    llm = data.get('llm_model')
+    
+    if stt in AVAILABLE_MODELS['stt']:
+        CURRENT_SETTINGS['stt_model'] = stt
+    if llm in AVAILABLE_MODELS['llm']:
+        CURRENT_SETTINGS['llm_model'] = llm
+        
+    logging.info(f"Nastavení aktualizováno: {CURRENT_SETTINGS}")
+    emit('settings_updated', CURRENT_SETTINGS)
 
 @socketio.on('toggle_audio_save')
 def toggle_audio_save(data):
@@ -891,19 +974,12 @@ def handle_reset_session():
     global current_vitals, recent_updates
     
     logging.info("Požadavek na reset session.")
-    # Zde force_new=True vytvoří NOVOU složku
     new_dir = get_or_create_session_dir(force_new=True)
     
     initialize_data_structures()
     
-    # Reset dashboardu
     current_vitals = {
-        "TF": "--",
-        "TK": "--/--",
-        "DF": "--",
-        "SpO2": "--",
-        "CRT": "--",
-        "AVPU": "--"
+        "TF": "--", "TK": "--/--", "DF": "--", "SpO2": "--", "CRT": "--", "AVPU": "--"
     }
     recent_updates.clear()
     
@@ -917,10 +993,10 @@ def handle_start_recording():
     global speech_processor, is_recording
     with recording_lock:
         if not is_recording:
-            # Použijeme existující session, nevytváříme novou
             get_or_create_session_dir(force_new=False)
             
             is_recording = True
+            # Inicializace procesoru se aktuálním nastavením (načte Vosk jen pokud je vybrán)
             speech_processor = VoiceSpeechProcessor()
             threading.Thread(target=speech_processor.start_listening, daemon=True).start()
             emit('recording_started')
@@ -946,7 +1022,7 @@ atexit.register(cleanup_app)
 
 if __name__ == '__main__':
     if not os.path.exists(MODEL_PATH):
-        logging.error(f"CHYBA: Vosk model nenalezen: {MODEL_PATH}")
+        logging.warning(f"VAROVÁNÍ: Vosk model nenalezen: {MODEL_PATH} (Lokální STT nebude fungovat)")
     if not os.environ.get("GROQ_API_KEY"):
         logging.warning("Chybí GROQ_API_KEY.")
 
