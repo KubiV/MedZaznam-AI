@@ -24,8 +24,55 @@ Současně je projekt koncipovaný jako modulární a flexibilní: existuje „p
 📈 CSV Export + Timestamps
 ```
 
-![Ukázka](./photo/IMG_2057.JPG)
+![Ukázka](./photo/Interface.JPG)
 
+
+Detailnější popis
+```
+[🎤 Mikrofon] 
+      ↓ (WAV)
+[Flask API /api/process_audio]
+      ↓
+---------------------------------------------------------
+| 1. TRANSKRIPCE (Groq Cloud)                           |
+|     ↙                        ↘                        |
+| [☁️ONLINE:Groq-Whisper]     [💻LOKÁLNÍ: vosk]         |
+|     ↘                           ↙                     |
+|   [📄 TEXTOVÝ PŘEPIS] "Pacient má tep 80...            |
+---------------------------------------------------------
+      ↓
+---------------------------------------------------------
+| 2. LLM ROUTER (Výběr modelu dle nastavení)            |
+|     ↙                   ↘                             |
+| [☁️ONLINE:Groq/GEMINI]    [💻LOKÁLNÍ: Ollama]         |
+|     ↘                   ↙                             |
+|      [📦 JSON: {"tep": "80"}]                         |
+---------------------------------------------------------
+      ↓
+---------------------------------------------------------
+| 3. PYTHON BACKEND (Logika)                            |
+| [🔄Normalizace] "tep" -> "Srdeční frekvence"          |
+|      ↓                                                |
+| [📂Kategorizace]: DrABCDE, Medication, Other...       |
+|      ↓                                                |
+| [Rozdělení dat]                                       |
+|  ├─> [❤️ Vitální funkce] (pro horní lištu)            |
+|  └─> [📂 Tabulky DrABCDE] (pro hlavní zobrazení)      |
+---------------------------------------------------------
+      ↓
+---------------------------------------------------------
+| 4. UKLÁDÁNÍ   (pouze Vercel verze)                    |
+| [RAM: Pandas DataFrame] -> [Disk: CSV soubory v /tmp] |
+---------------------------------------------------------
+    ↓                                     ↓
+[💾 Uložení CSV do /sessions]     [🌐 SocketIO Push]
+                                          ↓
+                                 [🖥️ WEB DASHBOARD]
+ 
+ 
+```
+
+![Diagram](./photo/Diagram.svg)
 ---
 
 ## 🚀 Rychlý start

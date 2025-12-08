@@ -1,0 +1,56 @@
+graph TD
+    %% VSTUP
+    User["🎤 Uživatel (Hlas)"] -->|Audio Stream| AudioProc["🔊 VoiceSpeechProcessor"]
+    
+    %% 1. TRANSKRIPCE
+    subgraph S1 [1. TRANSKRIPCE - STT]
+        AudioProc --> CheckProvider1{"AI PROVIDER"}
+        
+        %% Cesta A: Cloud
+        CheckProvider1 -->|groq| CloudSTT["☁️ Groq API (Whisper Turbo)"]
+        
+        %% Cesta B: Local
+        CheckProvider1 -->|local| LocalSTT["💻 Lokální VOSK (Small-CS)"]
+        
+        CloudSTT --> Text["📄 Textový přepis"]
+        LocalSTT --> Text
+    end
+
+    %% 2. LLM / AI MODELY
+    subgraph S2 [2. EXTRAKCE DAT - LLM Router]
+        Text --> CheckProvider2{"AI PROVIDER"}
+        
+        %% Cesta A: Cloud (Nyní rozdělená)
+        CheckProvider2 -->|cloud| CloudSelect{"Služba?"}
+        CloudSelect -->|Groq| GroqLLM["☁️ Groq (Llama 3)"]
+        CloudSelect -->|Google| GoogleLLM["☁️ Google AI (Gemini)"]
+        
+        %% Cesta B: Local
+        CheckProvider2 -->|local| LocalLLM["💻 Lokální OLLAMA (Gemma/DeepSeek)"]
+        
+        GroqLLM --> JSON["📦 Extrahovaný JSON"]
+        GoogleLLM --> JSON
+        LocalLLM --> JSON
+    end
+
+    %% 3. POST-PROCESSING
+    subgraph S3 [3. LOGIKA a KATEGORIZACE]
+        JSON --> Synonyms["🔄 Normalizace Synonym"]
+        Synonyms --> Categorizer["📂 KATEGORIZACE DAT"]
+        
+        %% Větvení po kategorizaci
+        Categorizer -->|Třídění do tabulek| DataFrames["🐼 Tabulky: DrABCDE, Léky, Jiné..."]
+        Categorizer -->|Extrakce hodnot| DictVitals["❤️ Vitals: TF, TK, SpO2..."]
+    end
+
+    %% 4. ULOŽIŠTĚ
+    subgraph S4 [4. STORAGE a LOGS]
+        DataFrames --> CSV["💾 CSV Soubory (/sessions)"]
+        AudioProc -.->|Volitelně| WavFile["🎵 WAV/MP3 Záznam"]
+    end
+
+    %% 5. VÝSTUP
+    subgraph S5 [5. REAL-TIME DASHBOARD]
+        DictVitals -->|SocketIO Emit| Web["🌐 Web Dashboard"]
+        DataFrames -->|SocketIO Emit| Web
+    end
