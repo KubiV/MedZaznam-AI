@@ -31,7 +31,7 @@ CURRENT_LLM_PROVIDER = "GEMINI"
 MODELS_CONFIG = {
     "GROQ_LLAMA": "llama-3.1-8b-instant",
     "GROQ_WHISPER": "whisper-large-v3-turbo",
-    "GEMINI": "gemini-2.5-flash",
+    "GEMINI": "gemini-1.5-flash", #gemini-1.5-flash gemini-2.5-flash gemini-2.5-flash-lite
     "TEMPERATURE": 0.1
 }
 

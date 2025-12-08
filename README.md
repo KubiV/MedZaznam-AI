@@ -153,7 +153,7 @@ export GROQ_API_KEY=tvuj-api-klic
 
 Cloudové LLM zpracování
 
-- 🌐 [Google AI Studio](aistudio.google.com)
+- 🌐 [Google AI Studio](https://ai.google.dev/gemini-api/docs/)
 
 ```bash
 pip install -q -U google-genai
