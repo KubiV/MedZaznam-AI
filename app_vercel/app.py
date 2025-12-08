@@ -44,7 +44,7 @@ AVAILABLE_MODELS = {
 # Aktuální nastavení (výchozí hodnoty)
 CURRENT_SETTINGS = {
     "stt_model": "whisper-large-v3-turbo",
-    "llm_model": "gemini-1.5-flash",
+    "llm_model": "llama-3.3-70b-versatile",
     "temperature": 0.1
 }
 
@@ -76,6 +76,7 @@ current_vitals = {
 
 # --- 1. KROK - SYNONYMA ---
 ITEM_SYNONYMS = {
+    # Původní synonyma pro Vitals
     "tepová frekvence": "Srdeční frekvence", "typová frekvence": "Srdeční frekvence", 
     "tep": "Srdeční frekvence", "puls": "Srdeční frekvence", "sf": "Srdeční frekvence", 
     "tf": "Srdeční frekvence", "srdeční frekvence (sf)": "Srdeční frekvence",
@@ -83,7 +84,60 @@ ITEM_SYNONYMS = {
     "saturace": "SpO2", "sat": "SpO2", "spo2": "SpO2",
     "dech": "Dechová frekvence", "df": "Dechová frekvence",
     "vědomí": "AVPU", "gcs": "glasgow coma scale", "avpu": "AVPU", "glasgow coma scale": "gcs",
-    "CRT": "Kapilární návrat", "crt": "Kapilární návrat"
+    "CRT": "Kapilární návrat", "crt": "Kapilární návrat",
+
+    # --- NOVÉ: Synonyma pro Léčiva (Medication.csv) ---
+    # Zahrnuje názvy v závorkách a běžné varianty
+    "adrenalin": "Adrenalin",
+    "amiodaron": "Amiodaron",
+    "atropin": "Atropin",
+    "noradrenalin": "Noradrenalin",
+    "adenosin": "Adenosin",
+    "midazolam": "Midazolam",
+    "fentanyl": "Fentanyl",
+    "morfin": "Morfin",
+    "ketamin": "Ketamin",
+    "propofol": "Propofol",
+    "sufentanil": "Sufentanil",
+    "rokuronium": "Rokuronium",
+    "sukcinylcholin": "Sukcinylcholin",
+    
+    # Složené názvy (Generikum vs Obchodní název)
+    "aspirin": "Aspirin (ASA)", 
+    "asa": "Aspirin (ASA)",
+    
+    "heparin": "Heparin",
+    
+    "nitroglycerin": "Nitroglycerin (Isoket)", 
+    "isoket": "Nitroglycerin (Isoket)",
+    
+    "furosemid": "Furosemid",
+    
+    "salbutamol": "Salbutamol (Ventolin)", 
+    "ventolin": "Salbutamol (Ventolin)",
+    
+    "urapidil": "Urapidil (Ebrantil)", 
+    "ebrantil": "Urapidil (Ebrantil)",
+    
+    "exacyl": "Exacyl (Kys. tranexamová)", 
+    "kys. tranexamová": "Exacyl (Kys. tranexamová)",
+    "kyselina tranexamová": "Exacyl (Kys. tranexamová)", # Pro jistotu rozepsané
+    
+    "magnesium sulfát": "Magnesium sulfát",
+    "magnesium": "Magnesium sulfát",
+    
+    "naloxon": "Naloxon",
+    
+    "flumazenil": "Flumazenil (Anexate)", 
+    "anexate": "Flumazenil (Anexate)",
+    
+    "glukóza": "Glukóza (G40%)", 
+    "g40%": "Glukóza (G40%)",
+    "g40": "Glukóza (G40%)",
+    
+    "paracetamol": "Paracetamol",
+    "ondansetron": "Ondansetron",
+    "ceftriaxon": "Ceftriaxon"
 }
 
 # --- 2. KROK - MAPPING NA DISPLEJ ---
@@ -155,13 +209,13 @@ Pravidla:
 2. JSON obsahuje klíč "polozky", což je slovník.
 3. Klíče ve slovníku "polozky" musí odpovídat názvům z následujícího seznamu (nebo jejich synonymům, které normalizuješ):
    [{items_list_str}]
-4. Normalizuj synonyma na oficiální názvy (např. "tep" -> "Srdeční frekvence", "saturace" -> "SpO2").
+4. Normalizuj synonyma na oficiální názvy (např. "tep" -> "Srdeční frekvence", "saturace" -> "SpO2", "Isoket" -> "Nitroglycerin (Isoket)").
 5. Pokud narazíš na položku, která v seznamu není, ale je lékařsky relevantní, zahrň ji také pod jejím obvyklým názvem.
 6. Hodnoty extrahuj jako čísla nebo formátovaný string (např. "120/80").
 
 Příklady:
-Uživatel: "Pacient má saturaci 92 a tlak 130 na 80."
-Výstup: {{"polozky": {{"SpO2": "92", "Krevní tlak": "130/80"}}}}
+Uživatel: "Pacient má saturaci 92 a tlak 130 na 80. Podán Isoket jeden vstřik."
+Výstup: {{"polozky": {{"SpO2": "92", "Krevní tlak": "130/80", "Nitroglycerin (Isoket)": "1 vstřik"}}}}
 """
 
 def generate_html_tables():
