@@ -21,7 +21,6 @@
         body { padding: 20px; background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.5s ease; }
         .container-fluid { max-width: 1600px; }
         
-        /* === UNIVERZÁLNÍ KARTA (WIDGET) === */
         .widget-card {
             background: white;
             border-radius: 10px;
@@ -50,12 +49,10 @@
         .widget-header h5 { margin: 0; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
         .widget-body { padding: 20px; flex-grow: 1; }
         
-        /* Animace šipky */
         .chevron-icon { transition: transform 0.3s ease; color: #adb5bd; }
         [aria-expanded="true"] .chevron-icon { transform: rotate(0deg); }
         [aria-expanded="false"] .chevron-icon { transform: rotate(-90deg); }
 
-        /* === HLAVNÍ SEKCE === */
         .main-section-header {
             cursor: pointer;
             padding-bottom: 10px;
@@ -70,7 +67,6 @@
         .main-section-header:hover { color: #0d6efd !important; border-bottom-color: #0d6efd; }
         .main-section-header h4 { margin: 0; font-weight: 600; }
 
-        /* === SPECIFICKÉ BARVY KARET === */
         .card-Voice { border-top-color: #0d6efd; } .card-Voice .widget-header h5 { color: #0d6efd; }
         .card-Transcript { border-top-color: #6610f2; } .card-Transcript .widget-header h5 { color: #6610f2; }
         .card-DrABCDE { border-top-color: #dc3545; } .card-DrABCDE .widget-header h5 { color: #dc3545; }
@@ -81,12 +77,10 @@
         .card-SBAR { border-top-color: #0dcaf0; } .card-SBAR .widget-header h5 { color: #0aa2c0; }
         .card-Other { border-top-color: #20c997; } .card-Other .widget-header h5 { color: #20c997; }
 
-        /* === PRVKY UVNITŘ === */
         .transcription-box { padding: 10px; border: 1px solid #dee2e6; border-radius: 6px; background-color: #f8f9fa; min-height: 80px; max-height: 250px; overflow-y: auto; }
         .log-box { font-family: monospace; font-size: 0.8rem; max-height: 150px; overflow-y: auto; background: #fff; padding: 10px; border: 1px solid #dee2e6; border-radius: 6px; }
         .table-responsive { max-height: 400px; overflow-y: auto; scrollbar-width: thin; }
 
-        /* === VITALS DISPLAY === */
         .vitals-panel { background: white; border-radius: 12px; padding: 20px 40px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 10px; }
         .vitals-value { font-size: 3rem; font-weight: 500; line-height: 1.2; }
         .vitals-label { font-size: 1rem; color: #666; text-transform: uppercase; margin-bottom: 5px; }
@@ -95,7 +89,6 @@
         .color-df { color: #007bff; } 
         .color-spo2 { color: #007bff; } 
 
-        /* === AUDIO VIZUALIZACE === */
         .mic-visualizer { height: 8px; background-color: #e9ecef; border-radius: 4px; overflow: hidden; margin-top: 15px; }
         .mic-level { height: 100%; width: 0%; background-color: #0d6efd; transition: width 0.1s; }
         .status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; float: right; }
@@ -104,15 +97,30 @@
         .status-recording { background: #f8d7da; color: #842029; animation: pulse-red 1.5s infinite; }
         @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(13, 202, 240, 0); } 100% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0); } }
+        
+        /* Model Switch Styles */
+        .model-switch-container { background: #fff; padding: 8px 15px; border-radius: 20px; border: 1px solid #dee2e6; display: flex; align-items: center; gap: 10px; }
+        .form-switch .form-check-input { width: 2.5em; height: 1.25em; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4 pt-2">
+        <div class="d-flex justify-content-between align-items-center mb-4 pt-2 flex-wrap gap-3">
             <h2 class="mb-0"><i class="bi bi-activity text-danger"></i> Lékařský Hlasový Záznamník <small class="text-muted fs-6">(Vercel)</small></h2>
-            <div class="d-flex gap-2">
-                 <button onclick="resetSession()" class="btn btn-outline-danger btn-sm border-0 fw-bold"><i class="bi bi-trash"></i> Reset</button>
-                 <a href="/download_zip" class="btn btn-success btn-sm fw-bold"><i class="bi bi-download"></i> Stáhnout data</a>
+            
+            <div class="d-flex align-items-center gap-3">
+                <div class="model-switch-container shadow-sm">
+                    <span class="text-muted small fw-bold"><i class="bi bi-cpu"></i> LLM:</span>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="modelToggle" {% if current_provider == 'GEMINI' %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold small" for="modelToggle" id="modelLabel">
+                            {% if current_provider == 'GEMINI' %}Google Gemini{% else %}Llama (Groq){% endif %}
+                        </label>
+                    </div>
+                </div>
+
+                <button onclick="resetSession()" class="btn btn-outline-danger btn-sm border-0 fw-bold"><i class="bi bi-trash"></i> Reset</button>
+                <a href="/download_zip" class="btn btn-success btn-sm fw-bold"><i class="bi bi-download"></i> Stáhnout data</a>
             </div>
         </div>
 
@@ -237,6 +245,34 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // --- LOGIKA PŘEPÍNÁNÍ MODELU ---
+        const modelToggle = document.getElementById('modelToggle');
+        const modelLabel = document.getElementById('modelLabel');
+
+        modelToggle.addEventListener('change', async function() {
+            const isGemini = this.checked;
+            const provider = isGemini ? 'GEMINI' : 'GROQ';
+            
+            // UI Update hned pro lepší pocit
+            modelLabel.textContent = isGemini ? 'Google Gemini' : 'Llama (Groq)';
+            
+            try {
+                const response = await fetch('/api/set_provider', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({provider: provider})
+                });
+                const data = await response.json();
+                console.log('Provider set to:', data.provider);
+            } catch (error) {
+                console.error('Error switching provider:', error);
+                alert('Nepodařilo se přepnout model. Zkontrolujte připojení.');
+                // Revert UI if fail
+                this.checked = !isGemini;
+                modelLabel.textContent = !isGemini ? 'Google Gemini' : 'Llama (Groq)';
+            }
+        });
+
         // --- KONFIGURACE AUTO MODE ---
         const CONFIG = {
             silenceThreshold: 15,    

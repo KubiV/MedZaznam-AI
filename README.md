@@ -149,6 +149,21 @@ export GROQ_API_KEY=tvuj-api-klic
 
 ---
 
+## 🔗 Google AI Studio
+
+Cloudové LLM zpracování
+
+- 🌐 [Google AI Studio](aistudio.google.com)
+
+```bash
+pip install -q -U google-genai
+
+# Nastav API klíč
+export GOOGLE_API_KEY=tvuj-api-klic
+```
+
+---
+
 ## 📁 Git Ignore
 
 Systém ignoruje:

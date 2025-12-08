@@ -130,7 +130,7 @@ VITALS_MAPPING = {
     "krevní tlak": "TK",
     "dechová frekvence": "DF",
     "spo2": "SpO2",
-    "crt": "CRT",
+    "kapilární návrat": "CRT",
     "avpu": "AVPU"
 }
 
