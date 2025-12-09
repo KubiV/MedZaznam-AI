@@ -35,6 +35,7 @@ AVAILABLE_MODELS = {
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
         "openai/gpt-oss-120b",
+    	"openai/gpt-oss-20b",
         "gemini-1.5-flash",
         "gemini-2.5-flash",
         "gemini-2.5-flash-lite"
@@ -44,7 +45,7 @@ AVAILABLE_MODELS = {
 # Aktuální nastavení (výchozí hodnoty)
 CURRENT_SETTINGS = {
     "stt_model": "whisper-large-v3-turbo",
-    "llm_model": "llama-3.3-70b-versatile",
+    "llm_model": "openai/gpt-oss-20b",
     "temperature": 0.1
 }
 
