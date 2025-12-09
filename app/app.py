@@ -66,6 +66,7 @@ AVAILABLE_MODELS = {
         "llama-3.3-70b-versatile", # Groq
         "llama-3.1-8b-instant",    # Groq
         "openai/gpt-oss-120b",     # Groq
+        "openai/gpt-oss-20b",      # Groq
         "gemini-1.5-flash",        # Google
         "gemini-2.5-flash-lite",   # Google
         "gemini-2.5-flash"         # Google
