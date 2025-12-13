@@ -29,7 +29,7 @@ Současně je projekt koncipovaný jako modulární a flexibilní: existuje „p
 
 Detailnější popis
 ```
-[🎤 Mikrofon] 
+[🎤 Mikrofon] - detekce ukončení řeči/uplynutý maximální čas pro jeden příkaz
       ↓ (WAV)
 [Flask API /api/process_audio]
       ↓

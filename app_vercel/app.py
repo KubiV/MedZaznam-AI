@@ -35,7 +35,7 @@ AVAILABLE_MODELS = {
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
         "openai/gpt-oss-120b",
-    	"openai/gpt-oss-20b",
+        "openai/gpt-oss-20b",
         "gemini-1.5-flash",
         "gemini-2.5-flash",
         "gemini-2.5-flash-lite"
@@ -88,7 +88,6 @@ ITEM_SYNONYMS = {
     "CRT": "Kapilární návrat", "crt": "Kapilární návrat",
 
     # --- NOVÉ: Synonyma pro Léčiva (Medication.csv) ---
-    # Zahrnuje názvy v závorkách a běžné varianty
     "adrenalin": "Adrenalin",
     "amiodaron": "Amiodaron",
     "atropin": "Atropin",
@@ -122,7 +121,7 @@ ITEM_SYNONYMS = {
     
     "exacyl": "Exacyl (Kys. tranexamová)", 
     "kys. tranexamová": "Exacyl (Kys. tranexamová)",
-    "kyselina tranexamová": "Exacyl (Kys. tranexamová)", # Pro jistotu rozepsané
+    "kyselina tranexamová": "Exacyl (Kys. tranexamová)",
     
     "magnesium sulfát": "Magnesium sulfát",
     "magnesium": "Magnesium sulfát",
@@ -285,7 +284,7 @@ def process_audio():
     file = request.files['audio_file']
     
     try:
-        # 1. Transkripce (Whisper via Groq) - Použije vybraný STT model
+        # 1. Transkripce (Whisper via Groq)
         stt_model = CURRENT_SETTINGS["stt_model"]
         file.filename = "rec.wav"
         
@@ -302,7 +301,7 @@ def process_audio():
         if not text or len(text) < 2:
             return jsonify({'transcription': '', 'extracted_data': {}, 'status': 'no_speech'})
 
-        # 2. Extrakce dat - Rozhodnutí podle názvu modelu
+        # 2. Extrakce dat
         extracted_data = {}
         llm_model = CURRENT_SETTINGS["llm_model"]
         

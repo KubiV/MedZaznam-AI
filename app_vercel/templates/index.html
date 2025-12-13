@@ -123,6 +123,15 @@
             cursor: pointer;
         }
         .model-label { font-size: 0.8rem; font-weight: 700; color: #6c757d; text-transform: uppercase; }
+        
+        /* Styling pro seznam posledních hodnot */
+        .recent-vitals-list div {
+            padding: 2px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .recent-vitals-list div:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -248,6 +257,15 @@
                         <div class="vitals-value" id="val-AVPU">{{ current_vitals['AVPU'] }}</div>
                     </div>
                 </div>
+                
+                <div class="mt-4 border-top pt-3">
+                    <div class="text-start">
+                        <h6 class="text-dark mb-2" style="font-size: 1.1rem;">Poslední hodnoty:</h6>
+                        <div id="vitalsRecentList" class="recent-vitals-list fs-5 text-dark">
+                            </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -308,7 +326,8 @@
         const CONFIG = {
             silenceThreshold: 15,    
             silenceDuration: 1500,   
-            minSpeechDuration: 500,  
+            minSpeechDuration: 500,
+            maxRecordDuration: 5000 // 5 sekund - Maximální čas kontinuálního nahrávání před odesláním
         };
 
         let isAutoMode = false;
@@ -324,6 +343,7 @@
         const levelBar = document.getElementById('micLevelBar');
         const transDiv = document.getElementById('lastTranscription');
         const logDiv = document.getElementById('logList');
+        const vitalsRecentDiv = document.getElementById('vitalsRecentList'); // Reference na nový seznam
 
         toggleBtn.addEventListener('click', async () => {
             if (!isAutoMode) {
@@ -382,6 +402,8 @@
             levelBar.style.backgroundColor = volume > CONFIG.silenceThreshold ? '#dc3545' : '#0d6efd';
 
             const now = Date.now();
+            
+            // --- DETEKCE TICHA (STANDARDNÍ) ---
             if (volume > CONFIG.silenceThreshold) {
                 silenceStart = null;
                 if (!isRecording) {
@@ -395,6 +417,7 @@
                 if (isRecording) {
                     if (!silenceStart) silenceStart = now;
                     if (now - silenceStart > CONFIG.silenceDuration) {
+                        // Ticho trvá moc dlouho -> odeslat
                         if (now - CONFIG.silenceDuration - speechStartTime > CONFIG.minSpeechDuration) {
                             mediaRecorder.stop();
                             updateStatus('processing');
@@ -407,6 +430,21 @@
                     }
                 }
             }
+
+            // --- ČASOVÉ OKNO (KONTINUÁLNÍ NAHRÁVÁNÍ) ---
+            if (isRecording && (now - speechStartTime > CONFIG.maxRecordDuration)) {
+                mediaRecorder.stop();
+                setTimeout(() => {
+                    if (isAutoMode) {
+                        mediaRecorder.start();
+                        speechStartTime = Date.now();
+                        silenceStart = null;
+                    }
+                }, 10);
+                animationFrame = requestAnimationFrame(detectSoundLoop);
+                return; 
+            }
+
             animationFrame = requestAnimationFrame(detectSoundLoop);
         }
 
@@ -428,7 +466,7 @@
             } catch (err) {
                 console.error(err);
             } finally {
-                if(isAutoMode) updateStatus('listening');
+                if(isAutoMode && !isRecording) updateStatus('listening');
             }
         }
 
@@ -460,7 +498,7 @@
                 });
             }
 
-            // Tables update (replace HTML inside specific cards)
+            // Tables update
             if (data.tables) {
                 for (const [key, html] of Object.entries(data.tables)) {
                     const safeKey = key.split(' ')[0];
@@ -469,9 +507,16 @@
                 }
             }
 
-            // Logs
+            // Logs - Update původního logu i nového seznamu pod vitálními funkcemi
             if (data.recent_updates) {
+                // 1. Původní malý log
                 logDiv.innerHTML = data.recent_updates.map(u => `<div>${u}</div>`).join('');
+                
+                // 2. Nový velký seznam pod vitálními funkcemi (Top 5)
+                if (vitalsRecentDiv) {
+                    const top5 = data.recent_updates.slice(0, 5);
+                    vitalsRecentDiv.innerHTML = top5.map(u => `<div>${u}</div>`).join('');
+                }
             }
         }
 
