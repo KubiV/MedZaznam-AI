@@ -73,6 +73,21 @@ Detailnější popis
 ```
 
 ![Diagram](./photo/Diagram.svg)
+
+---
+
+## Progresivní Webová Aplikace (PWA)
+
+Tento projekt je vytvořen jako **Progressive Web App (PWA)**. To znamená, že se chová podobně jako nativní aplikace, ale běží přímo ve webovém prohlížeči. Uživatelé si aplikaci mohou **nainstalovat na plochu nebo domovskou obrazovku** a získat rychlý, responzivní a „app-like“ zážitek bez nutnosti instalace z App Store či Google Play.
+
+PWA využívá moderní webové technologie, jako jsou **Service Workers** a **Web App Manifest**, které umožňují:
+- instalaci aplikace na zařízení,
+- cacheování dat a offline režim,
+- rychlé načítání a lepší výkon,
+- jednotné chování napříč platformami (desktop i mobil).
+
+Pro generování favicon (ikonky webu a PWA) používáme **RealFaviconGenerator** – online nástroj, který vytvoří všechny potřebné ikony pro různé prohlížeče, platformy a zařízení z jednoho vstupního obrázku 📱💻.  [oai_citation:0‡Real Favicon Generator](https://realfavicongenerator.net/?utm_source=chatgpt.com)
+
 ---
 
 ## 🚀 Rychlý start
